@@ -7,13 +7,14 @@ import nodemailer from 'nodemailer';
 import emailService from '../services/emailService.js';
 
 const transporter = nodemailer.createTransport({
-  host: config.email.host,
-  port: config.email.port,
-  secure: config.email.secure,
+  service: 'gmail',
   auth: {
-    user: config.email.user,
-    pass: config.email.password
-  }
+    user: process.env.EMAIL_USER || config.email.user,
+    pass: process.env.EMAIL_APP_PASSWORD || config.email.password
+  },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
 
 const mapRol = (rol) => {
@@ -169,10 +170,10 @@ const sendVerificationEmailWithCode = async (email, nombre, code) => {
     `
   };
   try {
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`📧 Email de verificación enviado a ${email}: ${info.response || info.messageId}`);
   } catch (err) {
-    console.warn('⚠️ No se pudo enviar el email. ¿Configuraste EMAIL_USER y EMAIL_APP_PASSWORD en .env?');
-    console.warn('   Error:', err.message);
+    console.error(`❌ Error enviando email a ${email}:`, err.message);
   }
 };
 

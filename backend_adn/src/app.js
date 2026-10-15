@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 // API ADN Motors Backend Server
 dotenv.config();
 
@@ -79,6 +80,7 @@ app.get(['/health', '/api/health'], async (req, res) => {
       status: 'ok',
       service: 'adn-motors-backend',
       database: 'connected',
+      email_configured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD),
       uptime: process.uptime(),
       timestamp: new Date().toISOString()
     });
@@ -89,6 +91,40 @@ app.get(['/health', '/api/health'], async (req, res) => {
       database: 'disconnected',
       error: err.message,
       timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/test-email', async (req, res) => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_APP_PASSWORD;
+
+  if (!user || !pass) {
+    return res.status(500).json({
+      success: false,
+      error: 'Variables EMAIL_USER o EMAIL_APP_PASSWORD no están configuradas en Render.',
+      user_configured: Boolean(user),
+      pass_configured: Boolean(pass)
+    });
+  }
+
+  try {
+    const testTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      connectionTimeout: 10000,
+    });
+    await testTransporter.verify();
+    return res.json({
+      success: true,
+      message: 'Gmail SMTP conectado exitosamente y listo para enviar correos.',
+      user: user.replace(/(.{3})(.*)(@.*)/, '$1***$3')
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+      code: err.code || 'SMTP_ERROR'
     });
   }
 });
