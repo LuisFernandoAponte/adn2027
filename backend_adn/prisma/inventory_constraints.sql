@@ -1,0 +1,10 @@
+ALTER TABLE inventario DROP CONSTRAINT IF EXISTS inventario_stock_actual_check;
+ALTER TABLE inventario ADD CONSTRAINT inventario_stock_actual_check CHECK ("stockActual" >= 0);
+ALTER TABLE inventario DROP CONSTRAINT IF EXISTS inventario_stock_minimo_check;
+ALTER TABLE inventario ADD CONSTRAINT inventario_stock_minimo_check CHECK ("stockMinimo" >= 0);
+ALTER TABLE inventario DROP CONSTRAINT IF EXISTS inventario_precio_compra_check;
+ALTER TABLE inventario ADD CONSTRAINT inventario_precio_compra_check CHECK ("precioCompra" >= 0);
+ALTER TABLE inventario DROP CONSTRAINT IF EXISTS inventario_precio_venta_check;
+ALTER TABLE inventario ADD CONSTRAINT inventario_precio_venta_check CHECK ("precioVenta" >= 0);
+ALTER TABLE movimiento_inventario DROP CONSTRAINT IF EXISTS movimiento_inventario_tipo_check;
+ALTER TABLE movimiento_inventario ADD CONSTRAINT movimiento_inventario_tipo_check CHECK (tipo IN ('entrada', 'salida', 'ajuste'));

@@ -1,0 +1,274 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ADN Motors Design System - Corporate Black/Red Theme */
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 0 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 0 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 10%;
+    --ring: 0 100% 50%;
+
+    --radius: 0.75rem;
+
+    --glow-red: 0 100% 50%;
+    --glow-intensity: 0.3;
+
+    --gradient-red: linear-gradient(135deg, hsl(0 100% 40%), hsl(0 100% 60%));
+    --gradient-red-subtle: linear-gradient(135deg, hsl(0 100% 40% / 0.8), hsl(0 100% 60% / 0.8));
+    --gradient-black-red: linear-gradient(135deg, hsl(0 0% 0%), hsl(0 100% 10%));
+    --gradient-dark: linear-gradient(180deg, hsl(0 0% 0%), hsl(0 0% 5%));
+
+    --shadow-red: 0 10px 30px -10px hsl(0 100% 50% / 0.3);
+    --shadow-red-glow: 0 0 25px hsl(0 100% 50% / 0.4);
+    --shadow-red-strong: 0 15px 40px -10px hsl(0 100% 50% / 0.5);
+    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.3);
+    --shadow-card-hover: 0 8px 40px hsl(0 0% 0% / 0.5);
+
+    --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --navbar-blur: 12px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6, .adn-logo {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  }
+
+  ::selection {
+    background: hsl(0 100% 50% / 0.3);
+    color: hsl(0 0% 100%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(0 0% 3%);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 20%);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(0 0% 35%);
+  }
+}
+
+@layer components {
+  .adn-logo {
+    @apply text-foreground font-bold tracking-wider;
+    text-shadow: 0 0 calc(10px * var(--glow-intensity)) hsl(var(--glow-red) / 0.3);
+    transition: var(--transition-smooth);
+  }
+
+  .adn-logo:hover {
+    --glow-intensity: 1;
+    text-shadow: 0 0 20px hsl(var(--glow-red) / 0.6);
+  }
+
+  .card-adn {
+    @apply bg-card border border-border rounded-xl;
+    background: linear-gradient(145deg, hsl(var(--card)), hsl(0 0% 6%));
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-smooth);
+  }
+
+  .card-adn:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: hsl(var(--primary) / 0.4);
+  }
+
+  .btn-hero {
+    @apply bg-primary text-primary-foreground px-8 py-4 rounded-lg font-semibold;
+    background: var(--gradient-red);
+    box-shadow: var(--shadow-red);
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, hsl(0 100% 60%), hsl(0 100% 40%));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .btn-hero:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-red-strong);
+  }
+
+  .btn-hero:hover::before {
+    opacity: 1;
+  }
+
+  .btn-hero:active {
+    transform: translateY(0);
+  }
+
+  .btn-hero > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .section-gradient-dark {
+    background: linear-gradient(180deg, hsl(0 0% 0%), hsl(0 0% 3%), hsl(0 0% 0%));
+  }
+
+  .section-gradient-red {
+    background: linear-gradient(135deg, hsl(0 0% 0%), hsl(0 100% 3%), hsl(0 0% 0%));
+  }
+
+  .text-gradient-red {
+    background: var(--gradient-red);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from {
+      text-shadow: 0 0 10px hsl(var(--glow-red) / 0.3);
+    }
+    to {
+      text-shadow: 0 0 25px hsl(var(--glow-red) / 0.6), 0 0 40px hsl(var(--glow-red) / 0.3);
+    }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, hsl(0 0% 8%) 25%, hsl(0 0% 15%) 50%, hsl(0 0% 8%) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  .whatsapp-float {
+    @apply fixed bottom-6 right-6 z-50;
+    @apply bg-green-500 text-white p-4 rounded-full shadow-lg;
+    @apply hover:bg-green-600;
+    transition: var(--transition-smooth);
+    box-shadow: 0 4px 20px hsl(142 76% 36% / 0.4);
+  }
+
+  .whatsapp-float:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 30px hsl(142 76% 36% / 0.5);
+  }
+
+  .glass {
+    background: hsl(0 0% 4% / 0.8);
+    backdrop-filter: blur(var(--navbar-blur));
+    -webkit-backdrop-filter: blur(var(--navbar-blur));
+  }
+
+  .glass-strong {
+    background: hsl(0 0% 0% / 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

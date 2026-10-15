@@ -1,0 +1,453 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Rol {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  descripcion String              @unique @db.VarChar(50)
+  estado      Boolean?            @default(true)
+  fechaReg    DateTime?           @default(now()) @db.Timestamp(6)
+
+  usuarios    Usuario[]
+  permisos    DetallePermiso[]
+
+  @@map("rol")
+}
+
+model Permiso {
+  id       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  permiso  String              @unique @db.VarChar(100)
+  estado   Boolean?            @default(true)
+  fechaReg DateTime?           @default(now()) @db.Timestamp(6)
+
+  detallePermisos DetallePermiso[]
+
+  @@map("permisos")
+}
+
+model DetallePermiso {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rolId     String @db.Uuid
+  permisoId String @db.Uuid
+
+  rol     Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, permisoId])
+  @@map("detalle_permiso")
+}
+
+model Usuario {
+  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombreCompleto              String    @db.VarChar(150)
+  email                       String    @unique @db.VarChar(150)
+  password                    String    @db.VarChar(255)
+  telefono                    String?   @db.VarChar(20)
+  direccion                   String?   @db.VarChar(255)
+  sexo                        Sexo?
+  edad                        Int?
+  estado                      Boolean?  @default(true)
+  fechaReg                    DateTime? @default(now()) @db.Timestamp(6)
+  rolId                       String    @db.Uuid
+  emailVerificado             Boolean?  @default(false)
+  emailVerificacionToken      String?   @db.VarChar(255)
+  emailVerificacionExpiracion DateTime? @db.Timestamp(6)
+  intentosFallidos            Int?      @default(0)
+  bloqueadoHasta              DateTime? @db.Timestamp(6)
+
+  rol       Rol       @relation(fields: [rolId], references: [id])
+  cliente   Cliente?
+  empleado  Empleado?
+  facturas  Factura[]
+  estadosTrabajo      EstadoTrabajo[]
+  preReservas         PreReserva[]
+  movimientosInventario MovimientoInventario[]
+  auditorias            Auditoria[]
+
+  @@index([email], map: "idx_usuario_email")
+  @@map("usuario")
+}
+
+model Cliente {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId String    @unique @db.Uuid
+  fechaReg  DateTime? @default(now()) @db.Timestamp(6)
+
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  citas      Cita[]
+  vehiculos  Vehiculo[]
+  facturas   Factura[]
+  notificaciones Notificacion[]
+  preReservas    PreReserva[]
+
+  @@map("cliente")
+}
+
+model Empleado {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cargo     String    @db.VarChar(100)
+  usuarioId String    @unique @db.Uuid
+  estado    Boolean?  @default(true)
+  fechaReg  DateTime? @default(now()) @db.Timestamp(6)
+
+  usuario          Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  horarios         HorariosEmpleado[]
+  citas            Cita[]
+
+  @@map("empleado")
+}
+
+model HorariosEmpleado {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empleadoId   String       @db.Uuid
+  diaSemana    Int
+  horaInicio   String       @db.VarChar(5)
+  horaFin      String       @db.VarChar(5)
+  tipoServicio TipoServicio
+  activo       Boolean?     @default(true)
+  createdAt    DateTime?    @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime?    @default(now()) @updatedAt @db.Timestamp(6)
+
+  empleado Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+
+  @@map("horarios_empleado")
+}
+
+model Servicio {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoria        String    @db.VarChar(100)
+  descripcion      String    @unique @db.VarChar(255)
+  costo            Decimal   @db.Decimal(10, 2)
+  duracionEstimada String?   @db.VarChar(50)
+  estado           Boolean?  @default(true)
+  fechaReg         DateTime? @default(now()) @db.Timestamp(6)
+
+  detalleServicios  DetalleServicio[]
+  detalleFacturas   DetalleFactura[]
+
+  @@map("servicios")
+}
+
+model Cita {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fechaCita             DateTime      @db.Date
+  horaInicio            DateTime      @db.Time(6)
+  horaFin               DateTime?     @db.Time(6)
+  observaciones         String?
+  diagnostico           String?
+  kilometraje           Int?          @default(0)
+  descuento             Decimal?      @default(0) @db.Decimal(10, 2)
+  fechaEstimadaEntrega  DateTime?     @db.Timestamp(6)
+  fechaEntregaReal      DateTime?     @db.Timestamp(6)
+  fotos                 String[]      @default([])
+  clienteId             String        @db.Uuid
+  empleadoId            String        @db.Uuid
+  estado                EstadoCita?   @default(Agendado)
+  tipoServicio          TipoServicio? @default(revision)
+  fechaReg              DateTime?     @default(now()) @db.Timestamp(6)
+
+  cliente          Cliente           @relation(fields: [clienteId], references: [id])
+  empleado         Empleado          @relation(fields: [empleadoId], references: [id])
+  detalleServicios   DetalleServicio[]
+  estadosTrabajo     EstadoTrabajo[]
+  factura            Factura?
+  notificaciones     Notificacion[]
+  preReserva         PreReserva?
+  movimientos        MovimientoInventario[]
+  citasRepuestos     CitaRepuesto[]
+
+  @@map("citas")
+}
+
+model DetalleServicio {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId     String @db.Uuid
+  servicioId String @db.Uuid
+
+  cita    Cita     @relation(fields: [citaId], references: [id], onDelete: Cascade)
+  servicio Servicio @relation(fields: [servicioId], references: [id])
+
+  @@unique([citaId, servicioId])
+  @@map("detalle_servicio")
+}
+
+model Factura {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numeroFactura String         @unique @db.VarChar(50)
+  citaId        String         @unique @db.Uuid
+  clienteId     String         @db.Uuid
+  usuarioId     String         @db.Uuid
+  fechaEmision  DateTime?      @default(now()) @db.Timestamp(6)
+  total         Decimal        @db.Decimal(10, 2)
+  estado        EstadoFactura? @default(emitida)
+
+  cita         Cita             @relation(fields: [citaId], references: [id])
+  cliente      Cliente          @relation(fields: [clienteId], references: [id])
+  usuario      Usuario          @relation(fields: [usuarioId], references: [id])
+  detalleFacturas DetalleFactura[]
+  pagos        Pago[]
+
+  @@map("factura")
+}
+
+model DetalleFactura {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facturaId      String  @db.Uuid
+  servicioId     String  @db.Uuid
+  descripcion    String  @db.VarChar(255)
+  cantidad       Int?    @default(1)
+  precioUnitario Decimal @db.Decimal(10, 2)
+  subtotal       Decimal @db.Decimal(10, 2)
+
+  factura  Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  servicio Servicio @relation(fields: [servicioId], references: [id])
+
+  @@map("detalle_factura")
+}
+
+model EstadoTrabajo {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  estado         String    @db.VarChar(50)
+  estadoAnterior String?   @db.VarChar(50)
+  fechaCambio    DateTime? @default(now()) @db.Timestamp(6)
+  observaciones  String?
+  citaId         String    @db.Uuid
+  usuarioId      String    @db.Uuid
+
+  cita    Cita    @relation(fields: [citaId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("estado_trabajo")
+}
+
+model Notificacion {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  asunto          String    @db.VarChar(255)
+  tipo            String?   @db.VarChar(50)
+  estadoEnvio     String?   @default("Pendiente") @db.VarChar(50)
+  fechaProgramada DateTime? @db.Date
+  clienteId       String?   @db.Uuid
+  citaId          String?   @db.Uuid
+
+  cliente Cliente? @relation(fields: [clienteId], references: [id])
+  cita    Cita?    @relation(fields: [citaId], references: [id])
+
+  @@map("notificaciones")
+}
+
+model PreReserva {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombreCompleto         String    @db.VarChar(150)
+  telefono               String    @db.VarChar(20)
+  email                  String    @db.VarChar(150)
+  marcaVehiculo          String?   @db.VarChar(100)
+  modeloVehiculo         String?   @db.VarChar(100)
+  anioVehiculo           Int?
+  placa                  String?   @db.VarChar(20)
+  tipoServicio           String    @db.VarChar(100)
+  descripcionProblema    String?
+  fechaCita              DateTime  @db.Date
+  horaCita               DateTime  @db.Time(6)
+  empleadoId             String?   @db.Uuid
+  clienteId              String?   @db.Uuid
+  usuarioId              String?   @db.Uuid
+  tokenVerificacion      String?   @db.VarChar(255)
+  expiracionVerificacion DateTime? @db.Timestamp(6)
+  estado                 String?   @default("PENDIENTE") @db.VarChar(50)
+  citaId                 String?   @unique @db.Uuid
+  fechaReg               DateTime? @default(now()) @db.Timestamp(6)
+
+  cita    Cita?    @relation(fields: [citaId], references: [id])
+  cliente Cliente? @relation(fields: [clienteId], references: [id])
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@map("pre_reserva")
+}
+
+model Vehiculo {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  marca       String    @db.VarChar(100)
+  modelo      String?   @db.VarChar(100)
+  anio        Int?
+  placa       String    @unique @db.VarChar(20)
+  kilometraje Int?      @default(0)
+  clienteId   String    @db.Uuid
+  estado      Boolean?  @default(true)
+  fechaReg    DateTime? @default(now()) @db.Timestamp(6)
+
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@map("vehiculos")
+}
+
+model Proveedor {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre            String     @db.VarChar(100)
+  contacto          String?    @db.VarChar(100)
+  telefono          String?    @db.VarChar(20)
+  email             String?    @db.VarChar(150)
+  direccion         String?
+  tiempoEntregaDias Int?       @default(7)
+  estado            Boolean?   @default(true)
+  fechaReg          DateTime?  @default(now()) @db.Timestamp(6)
+
+  inventarios Inventario[]
+
+  @@map("proveedor")
+}
+
+model Inventario {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo              String             @unique @db.VarChar(50)
+  nombre              String             @db.VarChar(100)
+  descripcion         String?
+  categoria           CategoriaRepuesto
+  stockActual         Int                @default(0)
+  stockMinimo         Int                @default(5)
+  precioCompra        Decimal            @db.Decimal(10, 2)
+  precioVenta         Decimal            @db.Decimal(10, 2)
+  unidadMedida        String?            @default("unidad") @db.VarChar(20)
+  proveedorId         String?            @db.Uuid
+  ubicacion           String?            @db.VarChar(50)
+  estado              Boolean?           @default(true)
+  fechaReg            DateTime?          @default(now()) @db.Timestamp(6)
+  fechaActualizacion  DateTime?          @default(now()) @updatedAt @db.Timestamp(6)
+
+  proveedor       Proveedor?              @relation(fields: [proveedorId], references: [id], onDelete: SetNull)
+  movimientos     MovimientoInventario[]
+  citasRepuestos  CitaRepuesto[]
+
+  @@index([codigo])
+  @@index([stockActual])
+  @@map("inventario")
+}
+
+model MovimientoInventario {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventarioId   String   @db.Uuid
+  tipo           String   @db.VarChar(20) 
+  cantidad       Int
+  stockAnterior  Int
+  stockNuevo     Int
+  citaId         String?  @db.Uuid
+  usuarioId      String   @db.Uuid
+  observaciones  String?
+  fechaReg       DateTime? @default(now()) @db.Timestamp(6)
+
+  inventario Inventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+  cita       Cita?      @relation(fields: [citaId], references: [id], onDelete: SetNull)
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
+
+  @@index([fechaReg])
+  @@map("movimiento_inventario")
+}
+
+model CitaRepuesto {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId         String   @db.Uuid
+  inventarioId   String   @db.Uuid
+  cantidad       Int
+  precioUnitario Decimal  @db.Decimal(10, 2)
+  subtotal       Decimal  @db.Decimal(10, 2)
+  instalado      Boolean? @default(true)
+  fechaReg       DateTime? @default(now()) @db.Timestamp(6)
+
+  cita      Cita       @relation(fields: [citaId], references: [id], onDelete: Cascade)
+  inventario Inventario @relation(fields: [inventarioId], references: [id])
+
+  @@unique([citaId, inventarioId])
+  @@map("cita_repuestos")
+}
+
+enum Sexo {
+  Masculino
+  Femenino
+  Otro
+}
+
+enum CategoriaRepuesto {
+  motor
+  frenos
+  suspension
+  electricidad
+  filtros
+  aceites
+  llantas
+  carroceria
+  otros
+}
+
+enum TipoServicio {
+  revision
+  reparacion
+  ambos
+}
+
+enum EstadoCita {
+  Agendado
+  En_taller
+  En_progreso
+  En_revision
+  Completado
+  Entregado
+  Cancelado
+}
+
+enum EstadoFactura {
+  emitida
+  anulada
+  pagada
+}
+
+enum MetodoPago {
+  efectivo
+  tarjeta
+  transferencia
+  QR
+}
+
+enum EstadoPago {
+  pendiente
+  completado
+  anulado
+  reembolsado
+}
+
+model Auditoria {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId  String?   @db.Uuid
+  accion     String    @db.VarChar(100)
+  entidad    String    @db.VarChar(100)
+  entidadId  String?   @db.VarChar(50)
+  detalle    String?   @db.Text
+  ip         String?   @db.VarChar(45)
+  userAgent  String?   @db.Text
+  fechaReg   DateTime? @default(now()) @db.Timestamp(6)
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([fechaReg])
+  @@index([usuarioId])
+  @@index([accion])
+  @@map("auditoria")
+}
+
+model Pago {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facturaId String      @db.Uuid
+  monto     Decimal     @db.Decimal(10, 2)
+  metodo    MetodoPago?
+  referencia String?    @db.VarChar(100)
+  estado    EstadoPago? @default(completado)
+  fechaPago DateTime?   @default(now()) @db.Timestamp(6)
+
+  factura Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  @@map("pagos")
+}
