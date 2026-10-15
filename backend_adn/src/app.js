@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import { sendSystemEmail } from './utils/mailer.js';
 // API ADN Motors Backend Server
 dotenv.config();
 
@@ -76,11 +77,18 @@ app.use('/api/auth/', authLimiter);
 app.get(['/health', '/api/health'], async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    const emailProvider = process.env.BREVO_API_KEY
+      ? 'brevo (HTTPS - Activo)'
+      : (process.env.RESEND_API_KEY
+        ? 'resend (HTTPS - Activo)'
+        : (process.env.EMAIL_USER ? 'gmail (SMTP)' : 'none'));
+
     res.status(200).json({
       status: 'ok',
       service: 'adn-motors-backend',
       database: 'connected',
-      email_configured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD),
+      email_configured: Boolean(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY || (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD)),
+      email_provider: emailProvider,
       uptime: process.uptime(),
       timestamp: new Date().toISOString()
     });
@@ -96,35 +104,70 @@ app.get(['/health', '/api/health'], async (req, res) => {
 });
 
 app.get('/api/test-email', async (req, res) => {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_APP_PASSWORD;
+  const to = req.query.to || process.env.EMAIL_USER;
+  const brevoKey = process.env.BREVO_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY;
+  const emailUser = process.env.EMAIL_USER;
 
-  if (!user || !pass) {
+  if (!brevoKey && !resendKey && !emailUser) {
     return res.status(500).json({
       success: false,
-      error: 'Variables EMAIL_USER o EMAIL_APP_PASSWORD no están configuradas en Render.',
-      user_configured: Boolean(user),
-      pass_configured: Boolean(pass)
+      error: 'Ningún servicio de email configurado. Agrega BREVO_API_KEY o RESEND_API_KEY en Render.',
+      brevo_configured: false,
+      resend_configured: false,
+      gmail_configured: false
     });
   }
 
-  try {
-    const testTransporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass },
-      connectionTimeout: 10000,
+  if (!to) {
+    return res.json({
+      status: 'ready',
+      provider_active: brevoKey ? 'brevo (HTTPS)' : (resendKey ? 'resend (HTTPS)' : 'gmail (SMTP)'),
+      brevo_configured: Boolean(brevoKey),
+      resend_configured: Boolean(resendKey),
+      gmail_configured: Boolean(emailUser),
+      instruccion: 'Para enviar un email de prueba real, llama a este endpoint con ?to=tu_correo@gmail.com'
     });
-    await testTransporter.verify();
+  }
+
+  const result = await sendSystemEmail({
+    to,
+    subject: '🔧 Prueba de correo exitosa - ADN Motors',
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 25px; max-width: 550px; border: 1px solid #e5e7eb; border-radius: 12px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">ADN Motors</h1>
+        </div>
+        <h2 style="color: #1f2937; margin-top: 0;">¡Sistema de Correos Funcionando! 🎉</h2>
+        <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">
+          Este correo de prueba confirma que tu backend en <strong>Render</strong> está enviando correos exitosamente a través de HTTPS.
+        </p>
+        <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 14px;">
+          <p style="margin: 4px 0;"><strong>Destinatario:</strong> ${to}</p>
+          <p style="margin: 4px 0;"><strong>Fecha y Hora:</strong> ${new Date().toLocaleString('es-BO')}</p>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">
+          Ahora tus clientes recibirán sus códigos de verificación de 6 dígitos sin demoras.
+        </p>
+      </div>
+    `,
+    text: `¡Prueba de correo exitosa de ADN Motors! Recibido por ${to}`
+  });
+
+  if (result.success) {
     return res.json({
       success: true,
-      message: 'Gmail SMTP conectado exitosamente y listo para enviar correos.',
-      user: user.replace(/(.{3})(.*)(@.*)/, '$1***$3')
+      message: `Correo de prueba enviado exitosamente a ${to}`,
+      provider: result.provider,
+      messageId: result.messageId
     });
-  } catch (err) {
+  } else {
     return res.status(500).json({
       success: false,
-      error: err.message,
-      code: err.code || 'SMTP_ERROR'
+      error: result.error,
+      code: result.code,
+      provider_attempted: result.provider,
+      ayuda: 'En Render free tier los puertos SMTP están bloqueados. Agrega la variable BREVO_API_KEY en el panel de Render.'
     });
   }
 });

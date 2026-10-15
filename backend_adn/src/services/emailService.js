@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import { sendSystemEmail } from '../utils/mailer.js';
 
 dotenv.config();
 
@@ -122,8 +123,10 @@ class EmailService {
     };
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('Email de bienvenida enviado:', info.messageId);
+      const info = await sendSystemEmail(mailOptions);
+      if (!info.success) {
+        return { success: false, error: info.error };
+      }
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('Error al enviar email de bienvenida:', error.message);
@@ -303,8 +306,10 @@ class EmailService {
     };
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('✅ Email de confirmación enviado:', info.messageId);
+      const info = await sendSystemEmail(mailOptions);
+      if (!info.success) {
+        return { success: false, error: info.error };
+      }
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('❌ Error al enviar email:', error);

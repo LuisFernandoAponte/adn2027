@@ -1,26 +1,9 @@
-import nodemailer from 'nodemailer';
 import prisma from '../config/database.js';
 import { config } from '../config/index.js';
+import { sendSystemEmail } from '../utils/mailer.js';
 
-const transporter = nodemailer.createTransport({
-  host: config.email.host,
-  port: config.email.port,
-  secure: config.email.secure,
-  auth: {
-    user: config.email.user,
-    pass: config.email.password,
-  },
-});
-
-const EMAIL_FROM = `"ADN Motors" <${config.email.user}>`;
-
-const sendMail = async (to, subject, html) => {
-  try {
-    await transporter.sendMail({ from: EMAIL_FROM, to, subject, html });
-    console.log(`📧 Email enviado a ${to}: ${subject}`);
-  } catch (err) {
-    console.error(`❌ Error enviando email a ${to}:`, err.message);
-  }
+export const sendMail = async (to, subject, html) => {
+  return await sendSystemEmail({ to, subject, html });
 };
 
 // ─────────────────────────────────────────────

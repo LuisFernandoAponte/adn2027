@@ -5,6 +5,7 @@ import prisma from '../config/database.js';
 import { config } from '../config/index.js';
 import nodemailer from 'nodemailer';
 import emailService from '../services/emailService.js';
+import { sendSystemEmail } from '../utils/mailer.js';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -140,11 +141,7 @@ const generateVerificationCode = () => {
 };
 
 const sendVerificationEmailWithCode = async (email, nombre, code) => {
-  const mailOptions = {
-    from: `"ADN Motors" <${config.email.user}>`,
-    to: email,
-    subject: 'Tu código de verificación - ADN Motors',
-    html: `
+  const mailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 30px; border-radius: 16px; text-align: center; margin-bottom: 30px;">
           <h1 style="color: white; font-size: 28px; margin: 0;">ADN Motors</h1>
@@ -167,14 +164,14 @@ const sendVerificationEmailWithCode = async (email, nombre, code) => {
           ADN Motors — Taller Automotriz Profesional
         </p>
       </div>
-    `
-  };
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`📧 Email de verificación enviado a ${email}: ${info.response || info.messageId}`);
-  } catch (err) {
-    console.error(`❌ Error enviando email a ${email}:`, err.message);
-  }
+  `;
+
+  return await sendSystemEmail({
+    to: email,
+    subject: 'Tu código de verificación - ADN Motors',
+    html: mailHtml,
+    text: `Tu código de verificación ADN Motors es: ${code} (expira en 10 minutos).`
+  });
 };
 
 export const register = async (req, res) => {
