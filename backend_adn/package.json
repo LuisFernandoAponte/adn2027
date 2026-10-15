@@ -14,7 +14,8 @@
     "prisma:push": "prisma db push",
     "seed": "node prisma/seed.js",
     "db:apply:sql": "node scripts/deploy_supabase_sql.js",
-    "db:setup:supabase": "prisma db push && node scripts/deploy_supabase_sql.js && node prisma/seed.js"
+    "db:setup:supabase": "prisma db push && node scripts/deploy_supabase_sql.js && node prisma/seed.js",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -34,10 +35,10 @@
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.15.0",
     "pg-listen": "^1.7.0",
+    "prisma": "^5.22.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4",
-    "prisma": "^5.22.0"
+    "nodemon": "^3.1.4"
   }
 }
