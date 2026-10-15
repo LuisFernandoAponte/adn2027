@@ -92,7 +92,7 @@ const AgendarCitaLanding = ({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
   const cargarEmpleados = async () => {
     try {
-      const res = await fetch("/api/cliente/empleados-disponibles");
+      const res = await fetch(`${API_BASE}/api/cliente/empleados-disponibles`);
       const data = await res.json();
       if (data.success && data.empleados.length > 0) {
         setEmpleados(data.empleados);
@@ -108,7 +108,7 @@ const AgendarCitaLanding = ({ isOpen, onClose }: { isOpen: boolean; onClose: () 
     setLoadingHorarios(true);
     try {
       const res = await fetch(
-        `/api/cliente/horarios-disponibles?empleado_id=${formData.empleado_id}&fecha=${formData.fecha}&tipo_servicio=${formData.tipo_servicio}`
+        `${API_BASE}/api/cliente/horarios-disponibles?empleado_id=${formData.empleado_id}&fecha=${formData.fecha}&tipo_servicio=${formData.tipo_servicio}`
       );
       const data = await res.json();
       if (data.success && data.horarios) {
