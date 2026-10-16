@@ -9,7 +9,7 @@ import {
 import { formatAMPM } from "@/lib/time";
 
 interface Empleado {
-  empleado_id: number;
+  empleado_id: string;
   nombre_completo: string;
   cargo: string;
   telefono: string;
@@ -17,7 +17,7 @@ interface Empleado {
 }
 
 interface Servicio {
-  id: number;
+  id: string;
   categoria: string;
   descripcion: string;
   costo: string | number;
@@ -26,7 +26,7 @@ interface Servicio {
 }
 
 interface Horario {
-  id: number;
+  id: string;
   hora_inicio: string;
   hora_fin: string;
   estado: 'disponible' | 'ocupado';
@@ -43,9 +43,9 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [horarios, setHorarios] = useState<Horario[]>([]);
 
-  const [selectedEmpleado, setSelectedEmpleado] = useState<number | null>(null);
+  const [selectedEmpleado, setSelectedEmpleado] = useState<string>('');
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState<Servicio[]>([]);
-  const [servicioParaAgregar, setServicioParaAgregar] = useState<number | ''>('');
+  const [servicioParaAgregar, setServicioParaAgregar] = useState<string>('');
 
   const [tipoServicio, setTipoServicio] = useState<'revision' | 'reparacion' | ''>('');
   const [fecha, setFecha] = useState("");
@@ -64,7 +64,7 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
   // Reset & load data when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
-      setSelectedEmpleado(null);
+      setSelectedEmpleado('');
       setServiciosSeleccionados([]);
       setServicioParaAgregar('');
       setTipoServicio('');
@@ -134,20 +134,20 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
   };
 
   const serviciosDisponibles = servicios.filter(
-    s => !serviciosSeleccionados.some(sel => sel.id === s.id)
+    s => !serviciosSeleccionados.some(sel => String(sel.id) === String(s.id))
   );
 
   const agregarServicio = () => {
     if (!servicioParaAgregar) return;
-    const servicio = servicios.find(s => s.id === Number(servicioParaAgregar));
-    if (!servicio || serviciosSeleccionados.some(s => s.id === servicio.id)) return;
+    const servicio = servicios.find(s => String(s.id) === String(servicioParaAgregar));
+    if (!servicio || serviciosSeleccionados.some(s => String(s.id) === String(servicio.id))) return;
     setServiciosSeleccionados(prev => [...prev, servicio]);
     setServicioParaAgregar('');
     setError(null);
   };
 
-  const eliminarServicio = (id: number) => {
-    setServiciosSeleccionados(prev => prev.filter(s => s.id !== id));
+  const eliminarServicio = (id: string) => {
+    setServiciosSeleccionados(prev => prev.filter(s => String(s.id) !== String(id)));
   };
 
   const costoTotal = serviciosSeleccionados.reduce((acc, s) => acc + getCostoNum(s), 0);
@@ -160,8 +160,8 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
     setSuccess(null);
     setLoading(true);
 
-    // ✅ VALIDACIONES ESTRICTAS antes de enviar
-    if (!selectedEmpleado || selectedEmpleado <= 0) {
+    // ✅ VALIDACIONES antes de enviar
+    if (!selectedEmpleado || !selectedEmpleado.trim()) {
       setError("Selecciona un empleado válido");
       setLoading(false);
       return;
@@ -200,6 +200,7 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
         id_servicios: serviciosSeleccionados.map(s => s.id),
         fecha_cita: fecha, // Formato: "YYYY-MM-DD"
         hora_inicio: horaFormateada, // Formato: "HH:mm:ss"
+        tipo_servicio: tipoServicio || 'revision',
       };
 
       console.log("📤 Payload enviado al backend:", payload); // Debug
@@ -272,10 +273,10 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
   const totalSteps = 5;
 
   const canSubmit = !loading && 
-                    selectedEmpleado && selectedEmpleado > 0 && 
+                    Boolean(selectedEmpleado && selectedEmpleado.trim() !== '') && 
                     serviciosSeleccionados.length > 0 && 
-                    fecha.trim() !== "" && 
-                    horaSeleccionada && horaSeleccionada.trim() !== "";
+                    Boolean(fecha && fecha.trim() !== "") && 
+                    Boolean(horaSeleccionada && horaSeleccionada.trim() !== "");
 
   return (
     <AnimatePresence>
@@ -401,10 +402,9 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
                 Empleado
               </label>
               <select
-                value={selectedEmpleado || ""}
+                value={selectedEmpleado}
                 onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setSelectedEmpleado(val > 0 ? val : null); // ✅ Evitar 0 como valor válido
+                  setSelectedEmpleado(e.target.value);
                   setFecha("");
                   setHoraSeleccionada(null);
                 }}
@@ -436,7 +436,7 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
               <div className="flex gap-2">
                 <select
                   value={servicioParaAgregar}
-                  onChange={(e) => setServicioParaAgregar(Number(e.target.value) || '')}
+                  onChange={(e) => setServicioParaAgregar(e.target.value)}
                   className="flex-1 p-3 rounded-xl bg-secondary border border-border text-foreground focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-300 outline-none appearance-none cursor-pointer"
                 >
                   <option value="">-- Selecciona un servicio --</option>
@@ -578,11 +578,11 @@ const AgendarCitaModal = ({ isOpen, onClose }: ModalProps) => {
                     {Array.from({ length: totalDias }).map((_, index) => {
                       const diaNumero = index + 1;
                       const fechaActual = new Date(calAnio, calMes, diaNumero);
-                      const fechaStr = fechaActual.toISOString().split('T')[0];
+                      const fechaStr = `${calAnio}-${String(calMes + 1).padStart(2, '0')}-${String(diaNumero).padStart(2, '0')}`;
                       const diaSemanaJS = fechaActual.getDay();
                       const esFinDeSemana = diaSemanaJS === 0 || diaSemanaJS === 6;
-                      const esDiaPasado = fechaActual < hoy;
-                      const esHoy = fechaStr === hoy.toISOString().split('T')[0];
+                      const esDiaPasado = new Date(calAnio, calMes, diaNumero, 23, 59, 59) < hoy;
+                      const esHoy = fechaStr === `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
                       const isSelected = fecha === fechaStr;
                       const esSeleccionable = !esFinDeSemana && !esDiaPasado;
 

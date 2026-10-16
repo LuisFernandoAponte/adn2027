@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import emailService from '../services/emailService.js';
 
 const TIPO_SERVICIO_MAP = {
   mantenimiento: 'revision',
@@ -178,43 +179,81 @@ export const getDiasDisponibles = async (req, res) => {
 
 export const agendarCita = async (req, res) => {
   try {
-    const { id_empleado, id_servicios, fecha_cita, hora_inicio } = req.body;
+    const { id_empleado, id_servicios, fecha_cita, hora_inicio, tipo_servicio } = req.body;
     const clienteId = req.user.id;
 
     if (!id_empleado || !id_servicios || !id_servicios.length || !fecha_cita || !hora_inicio) {
       return res.status(400).json({ success: false, error: 'Todos los campos son requeridos' });
     }
 
-    const [y, m, d] = fecha_cita.split('-').map(Number);
-    const fechaLocal = new Date(y, m - 1, d);
-    const diaSemanaLocal = fechaLocal.getDay() === 0 ? 7 : fechaLocal.getDay();
-
-    const cliente = await prisma.cliente.findUnique({
-      where: { usuarioId: clienteId }
+    let cliente = await prisma.cliente.findUnique({
+      where: { usuarioId: clienteId },
+      include: { usuario: true }
     });
 
     if (!cliente) {
-      return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+      cliente = await prisma.cliente.create({
+        data: { usuarioId: clienteId },
+        include: { usuario: true }
+      });
     }
+
+    const horaNormalizada = hora_inicio.includes(':') && hora_inicio.length <= 5
+      ? `${hora_inicio}:00`
+      : hora_inicio;
+
+    const [h, m] = horaNormalizada.split(':').map(Number);
+    const finH = Math.min(h + 1, 23).toString().padStart(2, '0');
+    const finStr = `${finH}:${m.toString().padStart(2, '0')}:00`;
 
     const cita = await prisma.cita.create({
       data: {
         fechaCita: new Date(fecha_cita + 'T00:00:00'),
-        horaInicio: new Date('1970-01-01T' + hora_inicio),
+        horaInicio: new Date('1970-01-01T' + horaNormalizada),
+        horaFin: new Date('1970-01-01T' + finStr),
         clienteId: cliente.id,
         empleadoId: id_empleado,
-        tipoServicio: 'revision',
+        tipoServicio: tipo_servicio || 'revision',
         estado: 'Agendado',
         detalleServicios: {
           create: id_servicios.map(servId => ({
-            servicioId: servId
+            servicioId: String(servId)
           }))
         }
       },
       include: {
-        detalleServicios: { include: { servicio: true } }
+        detalleServicios: { include: { servicio: true } },
+        empleado: { include: { usuario: true } }
       }
     });
+
+    // Enviar correo de confirmación de forma no bloqueante
+    try {
+      const emailDestino = cliente.usuario?.email;
+      if (emailDestino) {
+        const fechaFormateada = new Date(fecha_cita + 'T00:00:00').toLocaleDateString('es-BO', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const serviciosList = cita.detalleServicios.map(ds => ({
+          descripcion: ds.servicio.descripcion,
+          costo: ds.servicio.costo
+        }));
+        const costoTotal = cita.detalleServicios.reduce((acc, ds) => acc + (parseFloat(ds.servicio.costo) || 0), 0);
+
+        emailService.sendAppointmentConfirmation(emailDestino, {
+          clienteNombre: cliente.usuario.nombreCompleto || 'Cliente',
+          fechaFormateada,
+          horaInicio: horaNormalizada.substring(0, 5),
+          horaFin: finStr.substring(0, 5),
+          empleadoNombre: cita.empleado?.usuario?.nombreCompleto || 'Mecánico asignado',
+          serviciosList,
+          costoTotal,
+          observaciones: 'Por favor llegar 10 minutos antes.'
+        }).catch(err => console.warn('⚠️ No se pudo enviar email de confirmación:', err.message));
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error en despacho de email:', emailErr.message);
+    }
 
     return res.json({
       success: true,
