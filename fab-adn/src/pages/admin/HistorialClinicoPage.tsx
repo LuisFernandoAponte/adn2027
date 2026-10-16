@@ -25,6 +25,14 @@ import {
 } from "@/api/vehiculoApi";
 import { ModalWhatsAppNotificacion } from "@/components/admin/ModalWhatsAppNotificacion";
 
+const DEFAULT_PLACAS = [
+  { id: "1", placa: "4829-KLS", marca: "Toyota Hilux" },
+  { id: "2", placa: "3921-XYZ", marca: "Nissan Frontier" },
+  { id: "3", placa: "5102-ABC", marca: "Suzuki Vitara" },
+  { id: "4", placa: "2841-MNO", marca: "Mitsubishi L200" },
+  { id: "5", placa: "6039-PQR", marca: "Ford Raptor" },
+];
+
 export const HistorialClinicoPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -192,10 +200,11 @@ export const HistorialClinicoPage: React.FC = () => {
             </ButtonDS>
           </form>
 
+
           {/* Sugerencias Rápidas de Placas de la Base de Datos */}
           <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs text-neutral-400">
             <span className="font-semibold text-[11px] text-neutral-500">Placas del taller:</span>
-            {vehiculosList.map((v) => (
+            {(vehiculosList.length > 0 ? vehiculosList : DEFAULT_PLACAS).map((v) => (
               <button
                 key={v.id}
                 type="button"

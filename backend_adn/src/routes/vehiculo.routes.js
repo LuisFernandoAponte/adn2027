@@ -4,12 +4,12 @@ import {
   getHistorialClinico,
   getMantenimientosPreventivos,
 } from '../controllers/vehiculo.controller.js';
-import { verifyToken, requireRole } from '../middleware/auth.middleware.js';
+import { verifyToken, requireRole } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
 router.use(verifyToken);
-router.use(requireRole('Administrador', 'Secretaria', 'Mecanico'));
+router.use(requireRole('Administrador', 'admin', 'Secretaria', 'Mecanico', 'Empleado'));
 
 router.get('/', getVehiculos);
 router.get('/mantenimiento-preventivo', getMantenimientosPreventivos);

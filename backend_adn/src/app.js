@@ -216,6 +216,7 @@ app.use('/api/pagos', pagoRoutes);
 app.use('/api', appointmentsRoutes);
 app.use('/api/egresos', egresosRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
+app.use('/vehiculos', vehiculoRoutes);
 
 app.use((err, req, res, next) => {
   console.error('Error no manejado:', err);

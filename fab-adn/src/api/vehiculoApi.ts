@@ -130,16 +130,41 @@ const getHeaders = () => {
 };
 
 export const obtenerVehiculos = async (): Promise<VehiculoItem[]> => {
-  const res = await axios.get(`${API_BASE}/vehiculos`, getHeaders());
-  return res.data?.vehiculos || [];
+  try {
+    const res = await axios.get(`${API_BASE}/api/vehiculos`, getHeaders());
+    return res.data?.vehiculos || [];
+  } catch (err: any) {
+    if (err.response?.status === 404) {
+      const fallback = await axios.get(`${API_BASE}/vehiculos`, getHeaders());
+      return fallback.data?.vehiculos || [];
+    }
+    throw err;
+  }
 };
 
 export const obtenerHistorialClinico = async (placa: string): Promise<HistorialClinicoResponse> => {
-  const res = await axios.get(`${API_BASE}/vehiculos/historial/${encodeURIComponent(placa)}`, getHeaders());
-  return res.data;
+  const cleanPlaca = encodeURIComponent(placa.trim().toUpperCase());
+  try {
+    const res = await axios.get(`${API_BASE}/api/vehiculos/historial/${cleanPlaca}`, getHeaders());
+    return res.data;
+  } catch (err: any) {
+    if (err.response?.status === 404) {
+      const fallback = await axios.get(`${API_BASE}/vehiculos/historial/${cleanPlaca}`, getHeaders());
+      return fallback.data;
+    }
+    throw err;
+  }
 };
 
 export const obtenerMantenimientosPreventivos = async (): Promise<MantenimientoPreventivoResponse> => {
-  const res = await axios.get(`${API_BASE}/vehiculos/mantenimiento-preventivo`, getHeaders());
-  return res.data;
+  try {
+    const res = await axios.get(`${API_BASE}/api/vehiculos/mantenimiento-preventivo`, getHeaders());
+    return res.data;
+  } catch (err: any) {
+    if (err.response?.status === 404) {
+      const fallback = await axios.get(`${API_BASE}/vehiculos/mantenimiento-preventivo`, getHeaders());
+      return fallback.data;
+    }
+    throw err;
+  }
 };

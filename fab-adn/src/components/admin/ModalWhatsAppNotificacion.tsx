@@ -8,8 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 import { currencyFormatter } from "@/features/empleado/stateMachine";
 
 export interface ModalWhatsAppProps {
-  open: boolean;
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
+  trabajo?: any;
   clienteNombre?: string;
   clienteTelefono?: string;
   vehiculo?: string;
@@ -22,16 +24,27 @@ export interface ModalWhatsAppProps {
 
 export const ModalWhatsAppNotificacion: React.FC<ModalWhatsAppProps> = ({
   open,
+  isOpen,
   onClose,
-  clienteNombre = "Estimado cliente",
-  clienteTelefono = "70000000",
-  vehiculo = "Vehículo",
-  placa = "4829-KLS",
-  codigoOT = "OT-001",
-  total = 650,
-  servicio = "Mantenimiento General",
+  trabajo,
+  clienteNombre: propNombre,
+  clienteTelefono: propTelefono,
+  vehiculo: propVehiculo,
+  placa: propPlaca,
+  codigoOT: propCodigoOT,
+  total: propTotal,
+  servicio: propServicio,
   templateDefault = "listo",
 }) => {
+  const visible = open ?? isOpen ?? false;
+  const clienteNombre = trabajo?.cliente || propNombre || "Estimado cliente";
+  const clienteTelefono = trabajo?.cliente_telefono || propTelefono || "70000000";
+  const vehiculo = trabajo?.vehiculo || (trabajo?.vehiculo_marca ? `${trabajo.vehiculo_marca} ${trabajo.vehiculo_modelo}` : propVehiculo) || "Vehículo";
+  const placa = (trabajo?.placa && trabajo.placa !== "SIN PLACA") ? trabajo.placa : (propPlaca || "4829-KLS");
+  const codigoOT = trabajo?.id ? `OT-${String(trabajo.id).slice(-4).toUpperCase()}` : (propCodigoOT || "OT-001");
+  const total = Number(trabajo?.costo_total ?? propTotal ?? 650);
+  const servicio = trabajo?.servicio || propServicio || "Mantenimiento General";
+
   const { toast } = useToast();
   const [templateSeleccionado, setTemplateSeleccionado] = useState<string>(templateDefault);
   const [mensaje, setMensaje] = useState<string>("");
@@ -116,7 +129,7 @@ export const ModalWhatsAppNotificacion: React.FC<ModalWhatsAppProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+    <Dialog open={visible} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="max-w-xl bg-neutral-900 border border-white/10 text-neutral-100 p-6 rounded-3xl shadow-2xl">
         <DialogHeader className="border-b border-white/10 pb-4">
           <div className="flex items-center justify-between">
