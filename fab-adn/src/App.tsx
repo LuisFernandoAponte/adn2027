@@ -38,6 +38,8 @@ const InventarioPage = lazy(() => import("./pages/admin/InventarioPage"));
 const ReportesPage = lazy(() => import("./pages/admin/ReportesPage"));
 const FinanzasPage = lazy(() => import("./pages/admin/FinanzasPage"));
 const MisCitas = lazy(() => import("./pages/MisCitas").then(m => ({ default: m.MisCitas })));
+const HistorialClinicoPage = lazy(() => import("./pages/admin/HistorialClinicoPage"));
+const MantenimientoPreventivoPage = lazy(() => import("./pages/admin/MantenimientoPreventivoPage"));
 
 const queryClient = new QueryClient();
 
@@ -199,6 +201,36 @@ const AnimatedRoutes: React.FC = () => {
           <ProtectedRouteAdmin>
             <Suspense fallback={<PageSkeleton />}>
               <AdminLayout><FinanzasPage /></AdminLayout>
+            </Suspense>
+          </ProtectedRouteAdmin>
+        } />
+
+        <Route path="/historial-vehiculo" element={
+          <ProtectedRouteAdmin>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><HistorialClinicoPage /></AdminLayout>
+            </Suspense>
+          </ProtectedRouteAdmin>
+        } />
+        <Route path="/admin/historial-vehiculo" element={
+          <ProtectedRouteAdmin>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><HistorialClinicoPage /></AdminLayout>
+            </Suspense>
+          </ProtectedRouteAdmin>
+        } />
+
+        <Route path="/mantenimiento-preventivo" element={
+          <ProtectedRouteAdmin>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><MantenimientoPreventivoPage /></AdminLayout>
+            </Suspense>
+          </ProtectedRouteAdmin>
+        } />
+        <Route path="/admin/mantenimiento-preventivo" element={
+          <ProtectedRouteAdmin>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><MantenimientoPreventivoPage /></AdminLayout>
             </Suspense>
           </ProtectedRouteAdmin>
         } />

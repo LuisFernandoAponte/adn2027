@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
   Wrench, Car, User, Clock, Phone, FileText, Search, Plus, Trash2,
-  RefreshCw, DollarSign, Printer, ArrowLeft, Package, CheckCircle2, ChevronRight, AlertCircle, Calendar, Eye
+  RefreshCw, DollarSign, Printer, ArrowLeft, Package, CheckCircle2, ChevronRight, AlertCircle, Calendar, Eye,
+  ExternalLink, MessageSquare
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTrabajos, useCambiarEstadoCita } from "@/hooks/useTrabajos";
@@ -31,6 +32,7 @@ import { CrearTrabajoModal } from "@/components/CrearTrabajoModal";
 import { DetalleTrabajoDrawer } from "@/components/DetalleTrabajoDrawer";
 import { ModalFinalizarTrabajo } from "@/components/ModalFinalizarTrabajo";
 import { ModalCobroQR } from "@/components/ModalCobroQR";
+import { ModalWhatsAppNotificacion } from "@/components/admin/ModalWhatsAppNotificacion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const getBadgeVariant = (estado?: string): "blue" | "amber" | "purple" | "emerald" | "red" | "neutral" => {
@@ -120,6 +122,10 @@ export const AdminTrabajos = () => {
   // Modal Cobro QR Simple Bolivia
   const [modalCobroOpen, setModalCobroOpen] = useState(false);
   const [trabajoCobroSelected, setTrabajoCobroSelected] = useState<Trabajo | null>(null);
+
+  // Modal Notificaciones WhatsApp
+  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false);
+  const [trabajoWhatsApp, setTrabajoWhatsApp] = useState<Trabajo | null>(null);
 
   const { data: trabajos, isLoading, error, refetch } = useTrabajos();
   const cambiarEstadoMutation = useCambiarEstadoCita();
@@ -427,9 +433,19 @@ export const AdminTrabajos = () => {
                         <span className="text-sm font-black font-mono tracking-wider text-red-400 bg-red-500/10 border border-red-500/30 px-2.5 py-0.5 rounded-lg">
                           {codigoOT}
                         </span>
-                        <span className="font-mono text-xs font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2.5 py-0.5 rounded-lg">
-                          {trabajo.placa && trabajo.placa !== "SIN PLACA" ? trabajo.placa : "4829-KLS"}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const p = trabajo.placa && trabajo.placa !== "SIN PLACA" ? trabajo.placa : "4829-KLS";
+                            navigate(`/admin/historial-vehiculo?placa=${encodeURIComponent(p)}`);
+                          }}
+                          className="font-mono text-xs font-black uppercase tracking-widest bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 group/placa"
+                          title="Ver Historial Clínico Completo (Carfax)"
+                        >
+                          <span>{trabajo.placa && trabajo.placa !== "SIN PLACA" ? trabajo.placa : "4829-KLS"}</span>
+                          <ExternalLink className="h-3 w-3 opacity-60 group-hover/placa:opacity-100" />
+                        </button>
                       </div>
                       <h3 className="text-sm font-bold text-neutral-100 flex items-center gap-2 mt-1.5">
                         <User className="h-4 w-4 text-neutral-400 flex-shrink-0" />
@@ -562,6 +578,18 @@ export const AdminTrabajos = () => {
                         title="Vista Previa Rápida (Ojito)"
                       >
                         <Eye className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTrabajoWhatsApp(trabajo);
+                          setModalWhatsAppOpen(true);
+                        }}
+                        className="p-1.5 text-emerald-400 hover:text-emerald-300 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                        title="Enviar Notificación WhatsApp"
+                      >
+                        <MessageSquare className="h-4 w-4" />
                       </button>
 
                       <button
@@ -783,9 +811,18 @@ export const AdminTrabajos = () => {
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Placa Matrícula</span>
-                      <span className="inline-block bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono font-black text-sm px-3 py-1 rounded-lg mt-1 tracking-wider">
-                        {trabajoPreview.placa && trabajoPreview.placa !== "SIN PLACA" ? trabajoPreview.placa : "4829-KLS"}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = trabajoPreview.placa && trabajoPreview.placa !== "SIN PLACA" ? trabajoPreview.placa : "4829-KLS";
+                          navigate(`/admin/historial-vehiculo?placa=${encodeURIComponent(p)}`);
+                        }}
+                        className="inline-flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono font-black text-sm px-3 py-1 rounded-lg mt-1 tracking-wider transition-colors cursor-pointer"
+                        title="Ver Historial Clínico Completo (Carfax)"
+                      >
+                        <span>{trabajoPreview.placa && trabajoPreview.placa !== "SIN PLACA" ? trabajoPreview.placa : "4829-KLS"}</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </button>
                     </div>
                   </div>
 
@@ -961,6 +998,16 @@ export const AdminTrabajos = () => {
                   </button>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTrabajoWhatsApp(trabajoPreview);
+                        setModalWhatsAppOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:text-white hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" /> Notificar WhatsApp
+                    </button>
                     <ButtonDS variant="secondary" onClick={() => setModalPreviewOpen(false)}>
                       Cerrar Preview
                     </ButtonDS>
@@ -990,6 +1037,13 @@ export const AdminTrabajos = () => {
             refetch();
             navigate(`/factura/${facturaId}`);
           }}
+        />
+
+        {/* Modal Notificaciones Directas WhatsApp */}
+        <ModalWhatsAppNotificacion
+          isOpen={modalWhatsAppOpen}
+          onClose={() => setModalWhatsAppOpen(false)}
+          trabajo={trabajoWhatsApp}
         />
       </main>
     </div>

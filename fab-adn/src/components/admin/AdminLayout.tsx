@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Wrench, Shield, Package, BarChart3,
-  LogOut, Car, ChevronLeft, ChevronRight, Menu, X, DollarSign
+  LogOut, Car, ChevronLeft, ChevronRight, Menu, X, DollarSign, Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,13 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: <LayoutDashboard className="h-5 w-5" />, path: "/admin/dashboard" },
-  { label: "Trabajos", icon: <Wrench className="h-5 w-5" />, path: "/trabajos" },
-  { label: "Usuarios", icon: <Users className="h-5 w-5" />, path: "/usuarios" },
-  { label: "Roles", icon: <Shield className="h-5 w-5" />, path: "/roles" },
+  { label: "Trabajos (OT)", icon: <Wrench className="h-5 w-5" />, path: "/trabajos" },
+  { label: "Historial por Placa", icon: <Car className="h-5 w-5" />, path: "/admin/historial-vehiculo" },
+  { label: "Mantenimiento Prev.", icon: <Clock className="h-5 w-5" />, path: "/admin/mantenimiento-preventivo" },
   { label: "Inventario", icon: <Package className="h-5 w-5" />, path: "/admin/inventario" },
   { label: "Finanzas & Gastos", icon: <DollarSign className="h-5 w-5" />, path: "/admin/finanzas" },
+  { label: "Usuarios", icon: <Users className="h-5 w-5" />, path: "/usuarios" },
+  { label: "Roles", icon: <Shield className="h-5 w-5" />, path: "/roles" },
   { label: "Reportes", icon: <BarChart3 className="h-5 w-5" />, path: "/admin/reportes" },
 ];
 
