@@ -347,6 +347,35 @@ export const GestionRoles: React.FC = () => {
           </div>
         </div>
 
+        {/* Banner Informativo de Gobernanza & Matriz de Privilegios */}
+        <div className="mt-4 p-4 rounded-2xl bg-neutral-900 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-neutral-100 uppercase tracking-wider">
+                Gobernanza de Accesos & Seguridad Basada en Roles (RBAC)
+              </h3>
+              <p className="text-[11px] text-neutral-400">
+                Garantiza que administradores, mecánicos y secretarias tengan acceso exacto a sus módulos correspondientes.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="px-2.5 py-1 rounded-lg bg-neutral-950 border border-white/5 text-neutral-300">
+              🔴 <strong>Admin:</strong> Control Total
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-neutral-950 border border-white/5 text-neutral-300">
+              🔵 <strong>Mecánico:</strong> Taller & OTs
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-neutral-950 border border-white/5 text-neutral-300">
+              🟢 <strong>Secretaria:</strong> Citas & Clientes
+            </span>
+          </div>
+        </div>
+
         {/* Layout Principal 2 Columnas */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-6">
           

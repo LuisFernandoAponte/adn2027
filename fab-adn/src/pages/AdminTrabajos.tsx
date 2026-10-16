@@ -54,6 +54,15 @@ const getBadgeVariant = (estado?: string): "blue" | "amber" | "purple" | "emeral
   }
 };
 
+const formatDateSafe = (value: unknown): string => {
+  if (!value) return "En taller";
+  try {
+    const d = new Date(String(value));
+    return isNaN(d.getTime()) ? "En taller" : dateFormatter.format(d);
+  } catch {
+    return "En taller";
+  }
+};
 
 export const AdminTrabajos = () => {
   const navigate = useNavigate();
@@ -251,6 +260,10 @@ export const AdminTrabajos = () => {
   const actualmenteEnTaller = listData.filter((t) =>
     ["En taller", "En revisión", "En progreso"].includes(t.estado || "")
   ).length;
+  const listosParaEntrega = listData.filter((t) => t.estado === "Completado").length;
+  const pendienteCobroMonto = listData
+    .filter((t) => t.estado === "Completado")
+    .reduce((acc, t) => acc + Number(t.costo_total || 0), 0);
 
   // Filtrado Memorizado Dinámico
   const trabajosFiltrados = useMemo(() => {
@@ -309,7 +322,7 @@ export const AdminTrabajos = () => {
         </div>
 
         {/* KPIs Dinámicos Superior */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
           <StatCard
             title="Total Órdenes de Trabajo"
             value={totalOrdenes}
@@ -318,18 +331,25 @@ export const AdminTrabajos = () => {
             variant="blue"
           />
           <StatCard
-            title="Valor Total Acumulado"
-            value={currencyFormatter.format(valorTotalAcumulado)}
-            subtitle="Facturación total estimada"
-            icon={<DollarSign className="h-6 w-6" />}
-            variant="purple"
-          />
-          <StatCard
             title="Actualmente en Taller"
             value={actualmenteEnTaller}
             subtitle="En taller, revisión o progreso"
             icon={<Car className="h-6 w-6" />}
             variant="amber"
+          />
+          <StatCard
+            title="Listas para Entrega"
+            value={listosParaEntrega}
+            subtitle={listosParaEntrega > 0 ? `Por cobrar: ${currencyFormatter.format(pendienteCobroMonto)}` : "Sin órdenes pendientes"}
+            icon={<CheckCircle2 className="h-6 w-6" />}
+            variant="emerald"
+          />
+          <StatCard
+            title="Valor Total Facturado"
+            value={currencyFormatter.format(valorTotalAcumulado)}
+            subtitle="Facturación acumulada global"
+            icon={<DollarSign className="h-6 w-6" />}
+            variant="purple"
           />
         </div>
 
@@ -433,6 +453,48 @@ export const AdminTrabajos = () => {
                     </div>
                   </div>
 
+                  {/* Stepper Visual de Trazabilidad Operativa */}
+                  <div className="bg-neutral-950/70 p-2.5 rounded-xl border border-white/5 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                      <span className="flex items-center gap-1 font-medium">
+                        <Clock className="h-3 w-3 text-neutral-500" />
+                        <span>{formatDateSafe(trabajo.fecha)}</span>
+                      </span>
+                      <span className="font-mono text-neutral-400 font-semibold">
+                        Estado: <strong className="text-neutral-200">{estadoActual}</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1 pt-0.5">
+                      {[
+                        { key: "Agendado", label: "Agendado", color: "bg-blue-500" },
+                        { key: "En taller", label: "Taller", color: "bg-purple-500" },
+                        { key: "En progreso", label: "Progreso", color: "bg-amber-500" },
+                        { key: "Completado", label: "Listo", color: "bg-emerald-500" },
+                        { key: "Entregado", label: "Entregado", color: "bg-emerald-400" },
+                      ].map((fase) => {
+                        const order = ["Agendado", "En taller", "En revisión", "En progreso", "Completado", "Entregado"];
+                        const currentIdx = order.indexOf(estadoActual);
+                        const thisIdx = order.indexOf(fase.key);
+                        const isPastOrCurrent = currentIdx >= thisIdx && currentIdx !== -1;
+                        const isCurrent = estadoActual === fase.key || (fase.key === "En progreso" && estadoActual === "En revisión");
+
+                        return (
+                          <div key={fase.key} className="space-y-1">
+                            <div className={`h-1.5 rounded-full transition-all ${
+                              isCurrent ? `${fase.color} shadow-sm shadow-white/30 animate-pulse` : isPastOrCurrent ? fase.color : "bg-neutral-800"
+                            }`} />
+                            <span className={`block text-[9px] text-center truncate ${
+                              isCurrent ? "font-bold text-neutral-100" : isPastOrCurrent ? "text-neutral-400" : "text-neutral-600"
+                            }`}>
+                              {fase.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Vehículo, Servicios y Teléfono */}
                   <div className="space-y-2.5 text-xs">
                     <div className="flex items-center justify-between text-neutral-200 font-semibold bg-neutral-950/60 p-2 rounded-xl border border-white/5">
@@ -453,10 +515,18 @@ export const AdminTrabajos = () => {
                     </div>
 
                     <div className="flex items-center justify-between text-neutral-400 pt-0.5">
-                      <span className="flex items-center gap-1.5">
-                        <Phone className="h-3.5 w-3.5 text-neutral-500" />
-                        <span>{trabajo.cliente_telefono || "70000000"}</span>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://wa.me/591${(trabajo.cliente_telefono || "").replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline"
+                          title="Contactar por WhatsApp"
+                        >
+                          <Phone className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>{trabajo.cliente_telefono || "70000000"}</span>
+                        </a>
+                      </div>
                       <div className="text-right">
                         <span className="text-[10px] text-neutral-500 block">Total OT Estimado</span>
                         <span className="font-mono font-black text-neutral-100 text-sm text-emerald-400">

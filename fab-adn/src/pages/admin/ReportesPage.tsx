@@ -16,8 +16,9 @@ import { API_BASE } from "@/api/config";
 import axios from "axios";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, AreaChart, Area, ComposedChart, Line
 } from "recharts";
+import { obtenerBalanceResumen, type ResumenFinanciero } from "@/api/egresosApi";
 import { DESIGN_TOKENS } from "@/components/ui/designTokens";
 import { currencyFormatter, dateFormatter } from "@/features/empleado/stateMachine";
 
@@ -116,8 +117,10 @@ export const ReportesPage: React.FC = () => {
   const [mecanicosList, setMecanicosList] = useState<MecanicoEstadistica[]>([]);
   const [resumenPeriodo, setResumenPeriodo] = useState<ResumenPeriodoData | null>(null);
 
-  // Ordenamiento de tabla por servicio
+  // Ordenamiento de tabla por servicio y tipo de visualización
   const [sortServicios, setSortServicios] = useState<"total" | "veces">("total");
+  const [tipoGraficoServicio, setTipoGraficoServicio] = useState<"barras" | "dona">("barras");
+  const [balanceData, setBalanceData] = useState<ResumenFinanciero | null>(null);
 
   // Presets Rápidos de Fecha
   const aplicarPreset = (preset: "7d" | "30d" | "3m") => {
@@ -138,16 +141,23 @@ export const ReportesPage: React.FC = () => {
     try {
       setLoading(true);
       const token = getToken();
-      const response = await axios.get(`${API_BASE}/api/reportes/ingresos`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
-        },
-      });
+      const [response, balanceRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/reportes/ingresos`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            fecha_inicio: fechaInicio,
+            fecha_fin: fechaFin,
+          },
+        }).catch(() => null),
+        obtenerBalanceResumen().catch(() => null),
+      ]);
 
-      const data = response.data;
-      if (data && data.success) {
+      if (balanceRes) {
+        setBalanceData(balanceRes);
+      }
+
+      if (response && response.data && response.data.success) {
+        const data = response.data;
         setIndicadores(
           data.indicadores || {
             ingresos_totales: Number(data.ingresos_totales || 0),
@@ -577,17 +587,40 @@ export const ReportesPage: React.FC = () => {
           {/* GRÁFICO 1: INGRESOS POR SERVICIO (7 Col) */}
           <div className="lg:col-span-7 space-y-4">
             <div className="p-6 rounded-3xl bg-neutral-900 border border-white/10 space-y-4 shadow-xl">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
                     <Wrench className="h-5 w-5 text-red-500" />
-                    Ingresos por Servicio
+                    Ingresos por Servicio & Demanda
                   </h3>
                   <p className="text-xs text-neutral-400">Desglose de facturación y volumen según el tipo de servicio.</p>
                 </div>
 
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-neutral-400">Ordenar:</span>
+                  {/* Selector de Tipo de Gráfica */}
+                  <div className="flex items-center gap-1 bg-neutral-950 p-1 rounded-xl border border-white/5">
+                    <button
+                      onClick={() => setTipoGraficoServicio("barras")}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        tipoGraficoServicio === "barras"
+                          ? "bg-red-600 text-white shadow-sm"
+                          : "text-neutral-400 hover:text-neutral-200"
+                      }`}
+                    >
+                      Barras
+                    </button>
+                    <button
+                      onClick={() => setTipoGraficoServicio("dona")}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        tipoGraficoServicio === "dona"
+                          ? "bg-red-600 text-white shadow-sm"
+                          : "text-neutral-400 hover:text-neutral-200"
+                      }`}
+                    >
+                      Dona
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => setSortServicios(sortServicios === "total" ? "veces" : "total")}
                     className="px-2.5 py-1 rounded-lg bg-neutral-950 border border-white/10 text-neutral-200 font-bold hover:text-white"
@@ -613,22 +646,62 @@ export const ReportesPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Gráfico BarChart de Recharts */}
+                  {/* Gráfica Dinámica (Barras o Dona) */}
                   <div className="h-64 w-full pt-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={serviciosOrdenados.slice(0, 6)} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                        <XAxis dataKey="servicio" stroke="#888888" fontSize={11} tickLine={false} interval={0} angle={-15} textAnchor="end" />
-                        <YAxis stroke="#888888" fontSize={11} tickLine={false} tickFormatter={(v) => `Bs.${v}`} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "12px", color: "#ffffff" }}
-                          itemStyle={{ color: "#ffffff", fontWeight: "bold" }}
-                          labelStyle={{ color: "#94a3b8", fontWeight: "600" }}
-                          formatter={(value: any) => [currencyFormatter.format(Number(value || 0)), "Ingreso Total"]}
-                        />
-                        <Bar dataKey="total" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                      </BarChart>
+                      {tipoGraficoServicio === "barras" ? (
+                        <BarChart data={serviciosOrdenados.slice(0, 6)} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                          <XAxis dataKey="servicio" stroke="#888888" fontSize={11} tickLine={false} interval={0} angle={-15} textAnchor="end" />
+                          <YAxis stroke="#888888" fontSize={11} tickLine={false} tickFormatter={(v) => `Bs.${v}`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "12px", color: "#ffffff" }}
+                            itemStyle={{ color: "#ffffff", fontWeight: "bold" }}
+                            labelStyle={{ color: "#94a3b8", fontWeight: "600" }}
+                            formatter={(value: any) => [currencyFormatter.format(Number(value || 0)), "Ingreso Total"]}
+                          />
+                          <Bar dataKey="total" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      ) : (
+                        <PieChart>
+                          <Pie
+                            data={serviciosOrdenados.slice(0, 6)}
+                            dataKey="total"
+                            nameKey="servicio"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={85}
+                            innerRadius={45}
+                            paddingAngle={3}
+                          >
+                            {serviciosOrdenados.slice(0, 6).map((entry, index) => (
+                              <Cell key={`serv-cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "12px", color: "#ffffff" }}
+                            itemStyle={{ color: "#ffffff", fontWeight: "bold" }}
+                            labelStyle={{ color: "#94a3b8", fontWeight: "600" }}
+                            formatter={(val: any) => [currencyFormatter.format(Number(val || 0)), "Facturación"]}
+                          />
+                        </PieChart>
+                      )}
                     </ResponsiveContainer>
+                  </div>
+
+                  {/* Panel Interpretativo Inteligente */}
+                  <div className="p-3.5 rounded-2xl bg-neutral-950 border border-white/5 flex items-start gap-3 text-xs">
+                    <div className="p-2 rounded-xl bg-red-500/10 text-red-400 shrink-0 border border-red-500/20">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-neutral-200">Interpretación Comercial de la Demanda</h4>
+                      <p className="text-[11px] text-neutral-400 mt-0.5 leading-relaxed">
+                        {resumenPeriodo?.servicio_mayor_ingreso?.servicio
+                          ? `El servicio con mayor retorno es "${resumenPeriodo.servicio_mayor_ingreso.servicio}", sumando ${currencyFormatter.format(resumenPeriodo.servicio_mayor_ingreso.total)}. Se recomienda mantener disponibilidad prioritaria de repuestos y técnicos capacitados para este flujo.`
+                          : "Monitorea la rotación de servicios para diseñar promociones y paquetes de mantenimiento preventivo."}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Tabla Desglose de Servicios */}
@@ -742,8 +815,121 @@ export const ReportesPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
+
+                  {/* Panel Interpretativo de Mecánicos */}
+                  <div className="p-3.5 rounded-2xl bg-neutral-950 border border-white/5 flex items-start gap-3 text-xs">
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 shrink-0 border border-blue-500/20">
+                      <Award className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-neutral-200">Interpretación de Rendimiento Técnico</h4>
+                      <p className="text-[11px] text-neutral-400 mt-0.5 leading-relaxed">
+                        {resumenPeriodo?.mecanico_mayor_facturacion?.mecanico
+                          ? `El técnico líder en producción es "${resumenPeriodo.mecanico_mayor_facturacion.mecanico}". Balancear las asignaciones previene sobrecarga en bahías y agiliza los tiempos de entrega.`
+                          : "Asigna técnicos a las órdenes de trabajo para medir su rendimiento y especialidad en taller."}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN 3: BALANCE FINANCIERO INTEGRAL & FLUJO CONTABLE (INGRESOS VS EGRESOS) */}
+        <div className="mt-8 p-6 rounded-3xl bg-neutral-900 border border-white/10 space-y-5 shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div>
+              <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-emerald-400" />
+                Balance Financiero Contable & Rentabilidad Real
+              </h3>
+              <p className="text-xs text-neutral-400">
+                Flujo neto del taller: facturación real de órdenes vs. costos y egresos operativos (sueldos, luz, agua, alquiler)
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold ${
+                ((balanceData?.metricas?.utilidad_neta || 0) >= 0)
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : "bg-red-500/20 text-red-300 border border-red-500/30"
+              }`}>
+                {((balanceData?.metricas?.utilidad_neta || 0) >= 0) ? "SUPERÁVIT NETO" : "DÉFICIT NETO"} · Margen: {balanceData?.metricas?.margen_ganancia_porcentaje || 0}%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Tarjeta Ingresos */}
+            <div className="p-4 rounded-2xl bg-neutral-950 border border-emerald-500/20 space-y-1">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Ingresos Facturados</span>
+              <p className="text-2xl font-black text-emerald-400 font-mono">
+                {currencyFormatter.format(balanceData?.metricas?.ingresos_totales || indicadores.ingresos_totales || 0)}
+              </p>
+              <p className="text-[11px] text-neutral-500">Cobrado y liquidado en órdenes de trabajo</p>
+            </div>
+
+            {/* Tarjeta Egresos */}
+            <div className="p-4 rounded-2xl bg-neutral-950 border border-rose-500/20 space-y-1">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Gastos Operativos (Egresos)</span>
+              <p className="text-2xl font-black text-rose-400 font-mono">
+                {currencyFormatter.format(balanceData?.metricas?.egresos_totales || 0)}
+              </p>
+              <p className="text-[11px] text-neutral-500">Servicios básicos, sueldos, alquiler e insumos</p>
+            </div>
+
+            {/* Tarjeta Utilidad Neta */}
+            <div className={`p-4 rounded-2xl bg-neutral-950 border space-y-1 ${
+              (balanceData?.metricas?.utilidad_neta || 0) >= 0 ? "border-emerald-500/30" : "border-red-500/30"
+            }`}>
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Utilidad Neta Real</span>
+              <p className={`text-2xl font-black font-mono ${
+                (balanceData?.metricas?.utilidad_neta || 0) >= 0 ? "text-emerald-300" : "text-red-400"
+              }`}>
+                {currencyFormatter.format(balanceData?.metricas?.utilidad_neta || 0)}
+              </p>
+              <p className="text-[11px] text-neutral-500">Margen neto después de todos los costos operativos</p>
+            </div>
+          </div>
+
+          {/* Gráfico Comparativo de Flujo Contable */}
+          {balanceData && balanceData.distribucion_categorias && balanceData.distribucion_categorias.length > 0 && (
+            <div className="pt-2 space-y-3">
+              <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                Desglose Presupuestario de Gastos por Categoría
+              </h4>
+              <div className="space-y-2">
+                {balanceData.distribucion_categorias.map((cat) => (
+                  <div key={cat.categoria} className="p-3 rounded-xl bg-neutral-950 border border-white/5 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-neutral-200">{cat.nombre_legible}</span>
+                      <span className="font-mono text-rose-400 font-bold">{currencyFormatter.format(cat.total)} ({cat.porcentaje}%)</span>
+                    </div>
+                    <div className="h-2 w-full bg-neutral-900 rounded-full overflow-hidden border border-white/5">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.max(5, cat.porcentaje))}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Business Intelligence Card de Salud Financiera */}
+          <div className="p-4 rounded-2xl bg-neutral-950 border border-white/5 flex items-start gap-3 text-xs">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0 border border-emerald-500/20">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="font-bold text-neutral-200">Diagnóstico Contable & Recomendación Ejecutiva</h4>
+              <p className="text-[11px] text-neutral-400 mt-0.5 leading-relaxed">
+                {(balanceData?.metricas?.utilidad_neta || 0) >= 0
+                  ? `El taller mantiene un superávit financiero saludable con un margen operativo del ${balanceData?.metricas?.margen_ganancia_porcentaje || 0}%. Los ingresos por servicios cubren la totalidad de los costos fijos y variables. Se sugiere reservar un 15% del excedente para mantenimiento preventivo de maquinaria del taller.`
+                  : "Los egresos operativos superan actualmente los ingresos facturados en el período. Se sugiere revisar gastos en insumos no esenciales y acelerar la liquidación y entrega de órdenes de trabajo en taller con cobro pendiente."}
+              </p>
             </div>
           </div>
         </div>

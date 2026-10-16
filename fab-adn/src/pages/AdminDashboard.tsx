@@ -4,8 +4,12 @@ import {
   Wrench, Car, DollarSign, Clock, AlertTriangle, AlertCircle, RefreshCw,
   TrendingUp, TrendingDown, Users, Package, CheckCircle2, ChevronRight,
   ArrowUpRight, Calendar, UserCheck, ShieldCheck, FileText, Trophy, Award,
-  Receipt, Wallet
+  Receipt, Wallet, Sparkles, Activity
 } from "lucide-react";
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip
+} from "recharts";
 import { Navbar } from "@/components/ui/Navbar";
 import { ButtonDS } from "@/components/ui/ButtonDS";
 import { BadgeDS } from "@/components/ui/BadgeDS";
@@ -52,6 +56,27 @@ export const AdminDashboard = () => {
   }, [tendenciaData, nivel2]);
 
   const hasIngresosTrend = tendenciaList.length > 0;
+
+  const formattedChartData = useMemo(() => {
+    if (!tendenciaList || tendenciaList.length === 0) return [];
+    return tendenciaList.map((t: any, idx: number) => {
+      let fechaLabel = `Día ${idx + 1}`;
+      let fechaCompleta = `Registro ${idx + 1}`;
+      if (t.fecha) {
+        const d = new Date(t.fecha);
+        if (!isNaN(d.getTime())) {
+          fechaLabel = `${d.getDate()}/${d.getMonth() + 1}`;
+          fechaCompleta = d.toLocaleDateString("es-BO", { day: "numeric", month: "short" });
+        }
+      }
+      return {
+        ...t,
+        fechaLabel,
+        fechaCompleta,
+        total: Number(t.total || 0),
+      };
+    });
+  }, [tendenciaList]);
 
   return (
     <div className={`min-h-screen ${DESIGN_TOKENS.colors.bgBase} ${DESIGN_TOKENS.colors.textPrimary} pb-16`}>
@@ -378,14 +403,17 @@ export const AdminDashboard = () => {
                 </div>
               </CardDS>
 
-              {/* Evolución de Ingresos del Taller */}
+              {/* Evolución de Ingresos y Flujo de Taller */}
               <CardDS className="lg:col-span-2 p-5 space-y-4 border border-white/5 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-neutral-100 uppercase tracking-wider flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-400" />
-                    Evolución de Ingresos del Taller
-                  </h3>
-                  <span className="text-xs text-neutral-400 font-mono">
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-100 uppercase tracking-wider flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-400" />
+                      Evolución Diaria de Facturación & Flujo
+                    </h3>
+                    <p className="text-[11px] text-neutral-400">Tendencia de ingresos y cobros procesados por órdenes de trabajo</p>
+                  </div>
+                  <span className="text-xs text-neutral-300 font-mono font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
                     Total: {currencyFormatter.format(tendenciaData?.total_ingresos || nivel1?.ingresos_periodo_bob || 0)}
                   </span>
                 </div>
@@ -398,27 +426,78 @@ export const AdminDashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="h-44 flex items-end justify-between gap-1 pt-4 px-2 bg-neutral-950/60 rounded-2xl border border-white/5">
-                      {tendenciaList.slice(-14).map((t, idx) => {
-                        const maxMonto = Math.max(...tendenciaList.map((item: any) => item.total), 1);
-                        const pctH = Math.max(10, Math.round((t.total / maxMonto) * 100));
-                        return (
-                          <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative">
-                            <div
-                              className="w-full bg-red-500/80 hover:bg-red-400 rounded-t transition-all group-hover:shadow-lg group-hover:shadow-red-500/20"
-                              style={{ height: `${pctH}%` }}
-                            />
-                            <span className="text-[9px] font-mono text-neutral-500 truncate w-full text-center">
-                              {t.fecha ? new Date(t.fecha).getDate() : idx + 1}
-                            </span>
+                    <div className="h-48 w-full pt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={formattedChartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="dashboardIngresosGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
+                          <XAxis
+                            dataKey="fechaLabel"
+                            stroke="#737373"
+                            tick={{ fill: "#a3a3a3", fontSize: 10 }}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            stroke="#737373"
+                            tick={{ fill: "#a3a3a3", fontSize: 10 }}
+                            tickFormatter={(v) => `${v}`}
+                            tickLine={false}
+                          />
+                          <RechartsTooltip
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const item = payload[0].payload;
+                                return (
+                                  <div className="bg-neutral-900 border border-white/10 p-2.5 rounded-xl shadow-2xl font-mono text-xs">
+                                    <span className="text-neutral-400 block text-[10px] uppercase font-sans font-bold">
+                                      {item.fechaCompleta}
+                                    </span>
+                                    <span className="text-emerald-400 font-bold text-sm block mt-0.5">
+                                      {currencyFormatter.format(item.total || 0)}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="total"
+                            stroke="#10b981"
+                            strokeWidth={2.5}
+                            fillOpacity={1}
+                            fill="url(#dashboardIngresosGrad)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
 
-                            {/* Tooltip Hover */}
-                            <div className="absolute -top-8 bg-neutral-900 border border-white/10 text-[10px] font-mono px-2 py-0.5 rounded text-neutral-100 hidden group-hover:block z-10 shadow-xl whitespace-nowrap">
-                              Bs. {t.total}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    {/* Resumen Contable Rápido en Footer del Gráfico */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-white/5 text-[11px]">
+                      <div className="bg-neutral-950/60 p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                        <span className="text-neutral-400">Margen Operativo:</span>
+                        <strong className="text-emerald-400 font-mono font-bold">
+                          {nivel1?.margen_ganancia_pct || 0}%
+                        </strong>
+                      </div>
+                      <div className="bg-neutral-950/60 p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                        <span className="text-neutral-400">Gastos Registrados:</span>
+                        <strong className="text-rose-400 font-mono font-bold">
+                          {currencyFormatter.format(nivel1?.egresos_periodo_bob || 0)}
+                        </strong>
+                      </div>
+                      <div className="bg-neutral-950/60 p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                        <span className="text-neutral-400">Cobranza Pendiente:</span>
+                        <strong className="text-amber-400 font-mono font-bold">
+                          {currencyFormatter.format(nivel1?.pendiente_cobro_bob || 0)}
+                        </strong>
+                      </div>
                     </div>
                   </div>
                 )}

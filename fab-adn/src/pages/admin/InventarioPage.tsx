@@ -315,6 +315,38 @@ export const InventarioPage: React.FC = () => {
           />
         </div>
 
+        {/* Banner Informativo de Rentabilidad & Capital Inmovilizado */}
+        <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-900/90 to-emerald-950/20 border border-emerald-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <DollarSign className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-neutral-100 uppercase tracking-wider">
+                Diagnóstico Financiero de Stock & Rentabilidad Comercial
+              </h3>
+              <p className="text-[11px] text-neutral-400">
+                Capital total congelado en almacén vs. rendimiento estimado al ser instalado en órdenes de trabajo
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 font-mono text-xs">
+            <div className="bg-neutral-950/80 px-3 py-2 rounded-xl border border-white/5">
+              <span className="text-[10px] text-neutral-500 block font-sans">Ganancia Proyectada</span>
+              <strong className="text-emerald-400 font-bold">
+                +{currencyFormatter.format(Math.max(0, valorVentaTotal - valorCostoTotal))}
+              </strong>
+            </div>
+            <div className="bg-neutral-950/80 px-3 py-2 rounded-xl border border-white/5">
+              <span className="text-[10px] text-neutral-500 block font-sans">Margen Comercial Medio</span>
+              <strong className="text-purple-400 font-bold">
+                {valorCostoTotal > 0 ? `${(((valorVentaTotal - valorCostoTotal) / valorCostoTotal) * 100).toFixed(1)}%` : "0%"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
         {/* Banner de Alertas Automáticas (Si hay repuestos en stock bajo o agotados) */}
         {productosEnAlerta.length > 0 && (
           <div className="rounded-3xl bg-neutral-900 border border-red-500/30 p-5 space-y-3 shadow-xl">
@@ -624,6 +656,15 @@ export const InventarioPage: React.FC = () => {
                                 {item.stockActual} <span className="text-neutral-500 text-xs font-normal">/ {item.stockMinimo} {item.unidadMedida || 'u'}</span>
                               </span>
                               {getBadgeEstadoStock(item.stockActual, item.stockMinimo)}
+                            </div>
+                            <div className="h-1.5 w-28 bg-neutral-900 rounded-full overflow-hidden border border-white/5">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  item.stockActual === 0 ? "bg-red-500" :
+                                  item.stockActual <= item.stockMinimo ? "bg-amber-500" : "bg-emerald-500"
+                                }`}
+                                style={{ width: `${Math.min(100, Math.round((item.stockActual / Math.max(item.stockMinimo * 2, 1)) * 100))}%` }}
+                              />
                             </div>
                           </td>
 
