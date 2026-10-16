@@ -53,7 +53,7 @@ export const getVehiculos = async (req, res) => {
  */
 export const getHistorialClinico = async (req, res) => {
   try {
-    const { placa } = req.params;
+    const placa = req.params?.placa || req.query?.placa;
 
     if (!placa) {
       return res.status(400).json({ success: false, error: 'La placa es obligatoria.' });
