@@ -69,6 +69,7 @@ model Usuario {
   preReservas         PreReserva[]
   movimientosInventario MovimientoInventario[]
   auditorias            Auditoria[]
+  egresos               Egreso[]
 
   @@index([email], map: "idx_usuario_email")
   @@map("usuario")
@@ -99,6 +100,7 @@ model Empleado {
   usuario          Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   horarios         HorariosEmpleado[]
   citas            Cita[]
+  egresos          Egreso[]
 
   @@map("empleado")
 }
@@ -451,3 +453,36 @@ model Pago {
 
   @@map("pagos")
 }
+
+enum CategoriaEgreso {
+  servicios_basicos
+  sueldos_salarios
+  alquiler
+  repuestos_insumos
+  mantenimiento_taller
+  impuestos_legales
+  otros
+}
+
+model Egreso {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  descripcion           String          @db.VarChar(255)
+  categoria             CategoriaEgreso
+  monto                 Decimal         @db.Decimal(10, 2)
+  fecha                 DateTime        @db.Date
+  metodoPago            MetodoPago?     @default(efectivo)
+  referenciaComprobante String?         @db.VarChar(100)
+  comprobanteUrl        String?
+  empleadoId            String?         @db.Uuid
+  usuarioId             String          @db.Uuid
+  observaciones         String?         @db.Text
+  fechaReg              DateTime?       @default(now()) @db.Timestamp(6)
+
+  usuario               Usuario         @relation(fields: [usuarioId], references: [id])
+  empleado              Empleado?       @relation(fields: [empleadoId], references: [id], onDelete: SetNull)
+
+  @@index([fecha])
+  @@index([categoria])
+  @@map("egresos")
+}
+

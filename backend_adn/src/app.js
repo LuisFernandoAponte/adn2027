@@ -26,6 +26,7 @@ import reportesRoutes from './routes/reportes.routes.js';
 import exportRoutes from './routes/export.routes.js';
 import pagoRoutes from './routes/pago.routes.js';
 import appointmentsRoutes from './routes/appointments.routes.js';
+import egresosRoutes from './routes/egresos.routes.js';
 import { startListener } from './listeners/pgListen.js';
 
 const app = express();
@@ -212,6 +213,7 @@ app.use('/api', reportesRoutes);
 app.use('/api', exportRoutes);
 app.use('/api/pagos', pagoRoutes);
 app.use('/api', appointmentsRoutes);
+app.use('/api/egresos', egresosRoutes);
 
 app.use((err, req, res, next) => {
   console.error('Error no manejado:', err);

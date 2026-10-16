@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   Wrench, Car, DollarSign, Clock, AlertTriangle, AlertCircle, RefreshCw,
   TrendingUp, TrendingDown, Users, Package, CheckCircle2, ChevronRight,
-  ArrowUpRight, Calendar, UserCheck, ShieldCheck, FileText, Trophy, Award
+  ArrowUpRight, Calendar, UserCheck, ShieldCheck, FileText, Trophy, Award,
+  Receipt, Wallet
 } from "lucide-react";
 import { Navbar } from "@/components/ui/Navbar";
 import { ButtonDS } from "@/components/ui/ButtonDS";
@@ -128,6 +129,14 @@ export const AdminDashboard = () => {
             </button>
 
             <button
+              onClick={() => navigate("/admin/finanzas")}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-300 text-xs font-bold transition-all cursor-pointer shadow-sm"
+            >
+              <Receipt className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Finanzas & Gastos</span>
+            </button>
+
+            <button
               onClick={() => navigate("/admin/inventario?filtro=stock_bajo")}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-white/10 text-neutral-200 text-xs font-bold transition-all cursor-pointer"
             >
@@ -155,107 +164,173 @@ export const AdminDashboard = () => {
 
         {/* Carga Principal */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-6">
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="h-36 rounded-2xl bg-neutral-900 border border-white/5 animate-pulse p-5" />
             ))}
           </div>
         ) : (
           <div className="space-y-6 pt-6">
-            {/* 🟢 NIVEL 1 — KPIS DE ALTO NIVEL */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* 1. Ingresos del Período */}
-              <CardDS className="p-5 flex flex-col justify-between space-y-2 border border-white/5">
-                <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span className="font-bold uppercase tracking-wider">Ingresos del Período</span>
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <DollarSign className="h-4 w-4" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-neutral-100 font-mono">
-                    {currencyFormatter.format(nivel1?.ingresos_periodo_bob || 0)}
-                  </div>
-                  {nivel1?.variacion_porcentaje_real !== undefined && (
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold mt-1">
-                      {nivel1.variacion_porcentaje_real >= 0 ? (
-                        <span className="text-emerald-400 flex items-center gap-0.5">
-                          <TrendingUp className="h-3.5 w-3.5" /> +{nivel1.variacion_porcentaje_real}%
-                        </span>
-                      ) : (
-                        <span className="text-red-400 flex items-center gap-0.5">
-                          <TrendingDown className="h-3.5 w-3.5" /> {nivel1.variacion_porcentaje_real}%
-                        </span>
-                      )}
-                      <span className="text-neutral-500 font-normal">respecto al período anterior</span>
+            {/* 🟢 NIVEL 1 — BALANCE FINANCIERO Y CONTROL OPERATIVO */}
+            <div className="space-y-3">
+              {/* Bloque Superior: Rentabilidad Real del Negocio */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* 1. Ingresos Facturados */}
+                <CardDS className="p-5 flex flex-col justify-between space-y-2 border border-emerald-500/20 bg-gradient-to-br from-neutral-900 to-emerald-950/20">
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span className="font-bold uppercase tracking-wider">Ingresos Facturados</span>
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <DollarSign className="h-4 w-4" />
                     </div>
-                  )}
-                </div>
-              </CardDS>
+                  </div>
+                  <div>
+                    <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
+                      {currencyFormatter.format(nivel1?.ingresos_periodo_bob || 0)}
+                    </div>
+                    {nivel1?.variacion_porcentaje_real !== undefined && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold mt-1">
+                        {nivel1.variacion_porcentaje_real >= 0 ? (
+                          <span className="text-emerald-400 flex items-center gap-0.5">
+                            <TrendingUp className="h-3.5 w-3.5" /> +{nivel1.variacion_porcentaje_real}%
+                          </span>
+                        ) : (
+                          <span className="text-red-400 flex items-center gap-0.5">
+                            <TrendingDown className="h-3.5 w-3.5" /> {nivel1.variacion_porcentaje_real}%
+                          </span>
+                        )}
+                        <span className="text-neutral-500 font-normal">vs. período anterior</span>
+                      </div>
+                    )}
+                  </div>
+                </CardDS>
 
-              {/* 2. Órdenes de Trabajo */}
-              <CardDS
-                onClick={() => navigate("/admin/trabajos")}
-                className="p-5 flex flex-col justify-between space-y-2 border border-white/5 hover:border-red-500/40 cursor-pointer transition-colors group"
-              >
-                <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span className="font-bold uppercase tracking-wider">Órdenes de Trabajo</span>
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 group-hover:scale-105 transition-transform">
-                    <Wrench className="h-4 w-4" />
+                {/* 2. Gastos Operativos (Egresos) */}
+                <CardDS
+                  onClick={() => navigate("/admin/finanzas")}
+                  className="p-5 flex flex-col justify-between space-y-2 border border-rose-500/20 bg-gradient-to-br from-neutral-900 to-rose-950/20 cursor-pointer hover:border-rose-500/40 transition-colors group"
+                >
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span className="font-bold uppercase tracking-wider">Gastos Operativos (Egresos)</span>
+                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 group-hover:scale-105 transition-transform">
+                      <Receipt className="h-4 w-4" />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-neutral-100 font-mono">
-                    {nivel1?.ordenes_totales || 0}
+                  <div>
+                    <div className="text-2xl sm:text-3xl font-black text-rose-400 font-mono">
+                      {currencyFormatter.format(nivel1?.egresos_periodo_bob || 0)}
+                    </div>
+                    <div className="flex items-center justify-between mt-1 text-[11px]">
+                      <span className="text-neutral-400">Luz, agua, sueldos, taller</span>
+                      <span className="text-rose-400 font-semibold flex items-center gap-0.5 group-hover:underline">
+                        Ver cuentas <ArrowUpRight className="h-3 w-3" />
+                      </span>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-1 text-[10px] text-neutral-400 pt-2 border-t border-white/5 mt-2">
-                    <div><span className="text-neutral-500 block">Agend:</span><strong className="text-neutral-200 font-mono">{nivel1?.ordenes_distribucion?.Agendadas || 0}</strong></div>
-                    <div><span className="text-neutral-500 block">Taller:</span><strong className="text-purple-400 font-mono">{nivel1?.ordenes_distribucion?.En_taller || 0}</strong></div>
-                    <div><span className="text-neutral-500 block">Prog:</span><strong className="text-amber-400 font-mono">{nivel1?.ordenes_distribucion?.En_progreso || 0}</strong></div>
-                    <div><span className="text-neutral-500 block">Compl:</span><strong className="text-emerald-400 font-mono">{nivel1?.ordenes_distribucion?.Completadas || 0}</strong></div>
-                  </div>
-                </div>
-              </CardDS>
+                </CardDS>
 
-              {/* 3. Vehículos en Taller */}
-              <CardDS
-                onClick={() => navigate("/admin/trabajos?filtro=en_taller")}
-                className="p-5 flex flex-col justify-between space-y-2 border border-white/5 hover:border-amber-500/40 cursor-pointer transition-colors group"
-              >
-                <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span className="font-bold uppercase tracking-wider">Vehículos en Taller</span>
-                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-105 transition-transform">
-                    <Car className="h-4 w-4" />
+                {/* 3. Utilidad Neta Real */}
+                <CardDS
+                  onClick={() => navigate("/admin/finanzas")}
+                  className={`p-5 flex flex-col justify-between space-y-2 border cursor-pointer hover:border-white/20 transition-colors group ${
+                    (nivel1?.utilidad_neta_bob || 0) >= 0
+                      ? "border-emerald-500/30 bg-gradient-to-br from-neutral-900 to-emerald-950/30"
+                      : "border-red-500/30 bg-gradient-to-br from-neutral-900 to-red-950/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span className="font-bold uppercase tracking-wider">Utilidad Neta Real</span>
+                    <div className={`p-2 rounded-xl border ${
+                      (nivel1?.utilidad_neta_bob || 0) >= 0
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        : "bg-red-500/10 text-red-400 border-red-500/20"
+                    }`}>
+                      <Wallet className="h-4 w-4" />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-neutral-100 font-mono">
-                    {nivel1?.vehiculos_en_taller || 0} <span className="text-xs font-semibold text-neutral-400 font-sans">autos</span>
+                  <div>
+                    <div className={`text-2xl sm:text-3xl font-black font-mono ${
+                      (nivel1?.utilidad_neta_bob || 0) >= 0 ? "text-emerald-300" : "text-red-400"
+                    }`}>
+                      {currencyFormatter.format(nivel1?.utilidad_neta_bob || 0)}
+                    </div>
+                    <div className="flex items-center justify-between mt-1 text-[11px]">
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase font-mono ${
+                        (nivel1?.utilidad_neta_bob || 0) >= 0 ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-400"
+                      }`}>
+                        {(nivel1?.utilidad_neta_bob || 0) >= 0 ? "Superávit" : "Déficit"} · Margen: {nivel1?.margen_ganancia_pct || 0}%
+                      </span>
+                      <span className="text-neutral-500">Ingresos − Gastos</span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-500 mt-1">Actualmente en taller, revisión o progreso</p>
-                </div>
-              </CardDS>
+                </CardDS>
+              </div>
 
-              {/* 4. Pendiente de Cobro */}
-              <CardDS
-                onClick={() => navigate("/admin/trabajos?filtro=pendientes_cobro")}
-                className="p-5 flex flex-col justify-between space-y-2 border border-white/5 hover:border-red-500/40 cursor-pointer transition-colors group"
-              >
-                <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span className="font-bold uppercase tracking-wider">Pendiente de Cobro</span>
-                  <div className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 group-hover:scale-105 transition-transform">
-                    <Clock className="h-4 w-4" />
+              {/* Bloque Inferior: Operación del Taller */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* 4. Órdenes de Trabajo */}
+                <CardDS
+                  onClick={() => navigate("/admin/trabajos")}
+                  className="p-5 flex flex-col justify-between space-y-2 border border-white/5 hover:border-red-500/40 cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span className="font-bold uppercase tracking-wider">Órdenes de Trabajo</span>
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 group-hover:scale-105 transition-transform">
+                      <Wrench className="h-4 w-4" />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className={`text-2xl sm:text-3xl font-black font-mono ${nivel1?.pendiente_cobro_bob ? "text-red-400" : "text-neutral-100"}`}>
-                    {currencyFormatter.format(nivel1?.pendiente_cobro_bob || 0)}
+                  <div>
+                    <div className="text-2xl sm:text-3xl font-black text-neutral-100 font-mono">
+                      {nivel1?.ordenes_totales || 0}
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 text-[10px] text-neutral-400 pt-2 border-t border-white/5 mt-2">
+                      <div><span className="text-neutral-500 block">Agend:</span><strong className="text-neutral-200 font-mono">{nivel1?.ordenes_distribucion?.Agendadas || 0}</strong></div>
+                      <div><span className="text-neutral-500 block">Taller:</span><strong className="text-purple-400 font-mono">{nivel1?.ordenes_distribucion?.En_taller || 0}</strong></div>
+                      <div><span className="text-neutral-500 block">Prog:</span><strong className="text-amber-400 font-mono">{nivel1?.ordenes_distribucion?.En_progreso || 0}</strong></div>
+                      <div><span className="text-neutral-500 block">Compl:</span><strong className="text-emerald-400 font-mono">{nivel1?.ordenes_distribucion?.Completadas || 0}</strong></div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-500 mt-1">
-                    {nivel1?.pendiente_cobro_bob ? "Órdenes listas o facturas con saldo pendiente" : "Sin deudas pendientes en el período"}
-                  </p>
-                </div>
-              </CardDS>
+                </CardDS>
+
+                {/* 5. Vehículos en Taller */}
+                <CardDS
+                  onClick={() => navigate("/admin/trabajos?filtro=en_taller")}
+                  className="p-5 flex flex-col justify-between space-y-2 border border-white/5 hover:border-amber-500/40 cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span className="font-bold uppercase tracking-wider">Vehículos en Taller</span>
+                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-105 transition-transform">
+                      <Car className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-2xl sm:text-3xl font-black text-neutral-100 font-mono">
+                      {nivel1?.vehiculos_en_taller || 0} <span className="text-xs font-semibold text-neutral-400 font-sans">autos</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 mt-1">Actualmente en taller, revisión o progreso</p>
+                  </div>
+                </CardDS>
+
+                {/* 6. Pendiente de Cobro */}
+                <CardDS
+                  onClick={() => navigate("/admin/trabajos?filtro=pendientes_cobro")}
+                  className="p-5 flex flex-col justify-between space-y-2 border border-white/5 hover:border-red-500/40 cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center justify-between text-xs text-neutral-400">
+                    <span className="font-bold uppercase tracking-wider">Pendiente de Cobro</span>
+                    <div className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 group-hover:scale-105 transition-transform">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-2xl sm:text-3xl font-black font-mono ${nivel1?.pendiente_cobro_bob ? "text-red-400" : "text-neutral-100"}`}>
+                      {currencyFormatter.format(nivel1?.pendiente_cobro_bob || 0)}
+                    </div>
+                    <p className="text-[11px] text-neutral-500 mt-1">
+                      {nivel1?.pendiente_cobro_bob ? "Órdenes listas o facturas con saldo pendiente" : "Sin deudas pendientes en el período"}
+                    </p>
+                  </div>
+                </CardDS>
+              </div>
             </div>
 
             {/* 🟡 NIVEL 2 — ESTADO OPERATIVO E INGRESOS DEL TALLER */}

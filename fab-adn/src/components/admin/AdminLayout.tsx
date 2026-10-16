@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Wrench, Shield, Package, BarChart3,
-  LogOut, Car, ChevronLeft, ChevronRight, Menu, X
+  LogOut, Car, ChevronLeft, ChevronRight, Menu, X, DollarSign
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { label: "Usuarios", icon: <Users className="h-5 w-5" />, path: "/usuarios" },
   { label: "Roles", icon: <Shield className="h-5 w-5" />, path: "/roles" },
   { label: "Inventario", icon: <Package className="h-5 w-5" />, path: "/admin/inventario" },
+  { label: "Finanzas & Gastos", icon: <DollarSign className="h-5 w-5" />, path: "/admin/finanzas" },
   { label: "Reportes", icon: <BarChart3 className="h-5 w-5" />, path: "/admin/reportes" },
 ];
 

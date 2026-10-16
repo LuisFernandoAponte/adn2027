@@ -29,8 +29,8 @@ export const dashboardCompleto = async (req, res) => {
       fechaInicioAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
     }
 
-    // 1. NIVEL 1 — INGRESOS DEL PERÍODO (Real + Comparativa % Real)
-    const [ingresosActualAgg, ingresosAnteriorAgg] = await Promise.all([
+    // 1. NIVEL 1 — INGRESOS Y EGRESOS DEL PERÍODO (Real + Comparativa % Real)
+    const [ingresosActualAgg, ingresosAnteriorAgg, egresosActualAgg, egresosAnteriorAgg, ultimosEgresosList] = await Promise.all([
       prisma.factura.aggregate({
         where: { fechaEmision: { gte: fechaInicioPeriodo }, estado: 'emitida' },
         _sum: { total: true }
@@ -38,11 +38,32 @@ export const dashboardCompleto = async (req, res) => {
       prisma.factura.aggregate({
         where: { fechaEmision: { gte: fechaInicioAnterior, lt: fechaInicioPeriodo }, estado: 'emitida' },
         _sum: { total: true }
+      }),
+      prisma.egreso.aggregate({
+        where: { fecha: { gte: fechaInicioPeriodo } },
+        _sum: { monto: true }
+      }),
+      prisma.egreso.aggregate({
+        where: { fecha: { gte: fechaInicioAnterior, lt: fechaInicioPeriodo } },
+        _sum: { monto: true }
+      }),
+      prisma.egreso.findMany({
+        where: { fecha: { gte: fechaInicioPeriodo } },
+        orderBy: { fecha: 'desc' },
+        take: 6,
+        include: { empleado: { include: { usuario: true } } }
       })
     ]);
 
     const ingresosPeriodoTotal = Number(ingresosActualAgg._sum.total || 0);
     const ingresosAnteriorTotal = Number(ingresosAnteriorAgg._sum.total || 0);
+    const egresosPeriodoTotal = Number(egresosActualAgg._sum.monto || 0);
+    const egresosAnteriorTotal = Number(egresosAnteriorAgg._sum.monto || 0);
+
+    const utilidadNetaTotal = ingresosPeriodoTotal - egresosPeriodoTotal;
+    const margenGananciaPct = ingresosPeriodoTotal > 0
+      ? Math.round(((utilidadNetaTotal / ingresosPeriodoTotal) * 100) * 10) / 10
+      : 0;
 
     let variacionPorcentajeReal = 0;
     if (ingresosAnteriorTotal > 0) {
@@ -262,11 +283,22 @@ export const dashboardCompleto = async (req, res) => {
       fecha_actual: ahora,
       nivel1: {
         ingresos_periodo_bob: ingresosPeriodoTotal,
+        egresos_periodo_bob: egresosPeriodoTotal,
+        utilidad_neta_bob: utilidadNetaTotal,
+        margen_ganancia_pct: margenGananciaPct,
         variacion_porcentaje_real: variacionPorcentajeReal,
         ordenes_totales: ordenesTotalesPeriodo,
         ordenes_distribucion: distribucionEstadosPeriodo,
         vehiculos_en_taller: vehiculosEnTallerCount,
-        pendiente_cobro_bob: pendienteCobroTotal
+        pendiente_cobro_bob: pendienteCobroTotal,
+        ultimos_egresos: ultimosEgresosList.map(e => ({
+          id: e.id,
+          descripcion: e.descripcion,
+          categoria: e.categoria,
+          monto: Number(e.monto),
+          fecha: e.fecha.toISOString().split('T')[0],
+          beneficiario: e.empleado?.usuario?.nombreCompleto || null
+        }))
       },
       nivel2: {
         estados_taller: estadosTallerCounts,

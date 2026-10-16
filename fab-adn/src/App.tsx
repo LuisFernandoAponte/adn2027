@@ -36,6 +36,7 @@ const AdminTrabajos = lazy(() => import("./pages/AdminTrabajos").then(m => ({ de
 const FacturaView = lazy(() => import("./pages/FacturaView"));
 const InventarioPage = lazy(() => import("./pages/admin/InventarioPage"));
 const ReportesPage = lazy(() => import("./pages/admin/ReportesPage"));
+const FinanzasPage = lazy(() => import("./pages/admin/FinanzasPage"));
 const MisCitas = lazy(() => import("./pages/MisCitas").then(m => ({ default: m.MisCitas })));
 
 const queryClient = new QueryClient();
@@ -183,6 +184,21 @@ const AnimatedRoutes: React.FC = () => {
           <ProtectedRouteAdmin>
             <Suspense fallback={<PageSkeleton />}>
               <AdminLayout><ReportesPage /></AdminLayout>
+            </Suspense>
+          </ProtectedRouteAdmin>
+        } />
+
+        <Route path="/finanzas" element={
+          <ProtectedRouteAdmin>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><FinanzasPage /></AdminLayout>
+            </Suspense>
+          </ProtectedRouteAdmin>
+        } />
+        <Route path="/admin/finanzas" element={
+          <ProtectedRouteAdmin>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><FinanzasPage /></AdminLayout>
             </Suspense>
           </ProtectedRouteAdmin>
         } />
