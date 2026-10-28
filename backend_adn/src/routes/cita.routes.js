@@ -13,19 +13,26 @@ import {
   eliminarTrabajo,
   subirFotoCita,
   eliminarFotoCita,
-  actualizarInformeTecnico
+  actualizarInformeTecnico,
+  subirFotoTemp
 } from '../controllers/cita.controller.js';
 
 const router = Router();
 
 router.get('/admin/citas', verifyToken, listarParaAdmin);
+router.get('/citas/admin/citas', verifyToken, listarParaAdmin);
 router.post('/admin/citas', verifyToken, crearTrabajoAdmin);
+router.post('/citas/admin/citas', verifyToken, crearTrabajoAdmin);
+router.post('/admin/citas/subir-temp', verifyToken, subirFotoTemp);
+router.post('/citas/admin/citas/subir-temp', verifyToken, subirFotoTemp);
 router.patch('/admin/citas/:citaId/estado', verifyToken, cambiarEstado);
+router.patch('/citas/admin/citas/:citaId/estado', verifyToken, cambiarEstado);
 router.post('/admin/citas/:citaId/repuestos', verifyToken, agregarRepuestoACita);
 router.delete('/admin/citas/:citaId/repuestos/:repuestoId', verifyToken, quitarRepuestoDeCita);
 router.get('/admin/vehiculo/:placa/historial', verifyToken, obtenerHistorialVehiculo);
 router.get('/citas/admin/vehiculo/:placa/historial', verifyToken, obtenerHistorialVehiculo);
 router.delete('/admin/citas/:citaId', verifyToken, eliminarTrabajo);
+router.delete('/citas/admin/citas/:citaId', verifyToken, eliminarTrabajo);
 
 router.post('/admin/citas/:citaId/fotos', verifyToken, subirFotoCita);
 router.delete('/admin/citas/:citaId/fotos', verifyToken, eliminarFotoCita);

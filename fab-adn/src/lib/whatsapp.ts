@@ -55,3 +55,9 @@ Me gustaría agendar una cita. ¿Cuándo tienen disponibilidad?
 
 Gracias!`;
 };
+
+export const openWhatsApp = (options: { phoneNumber?: string; message?: string }) => {
+  const num = options.phoneNumber || WHATSAPP_NUMBERS.main;
+  const url = createWhatsAppURL(num, options.message || '');
+  window.open(url, '_blank');
+};

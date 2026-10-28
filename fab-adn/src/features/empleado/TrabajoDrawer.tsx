@@ -64,19 +64,33 @@ export const TrabajoDrawer: React.FC<TrabajoDrawerProps> = ({
   };
 
   const codigoOT = getCodigoOT(trabajo.id);
-  const clienteNombre = trabajo.cliente?.usuario?.nombreCompleto || trabajo.cliente?.nombre || "Cliente Sin Nombre";
-  const clienteTel = trabajo.cliente?.usuario?.telefono || trabajo.cliente?.telefono || "70000000";
+  const clienteNombre = typeof trabajo.cliente === "string"
+    ? trabajo.cliente
+    : trabajo.cliente?.usuario?.nombreCompleto || trabajo.cliente?.nombre || "Cliente ADN";
+  const clienteTel = trabajo.cliente_telefono || trabajo.cliente?.usuario?.telefono || trabajo.cliente?.telefono || "70000000";
   const estadoActual = (trabajo.estado || "Agendado") as EstadoTrabajoType;
 
-  const serviciosList = trabajo.detalleServicios || [];
-  const repuestosList = trabajo.citasRepuestos || [];
+  const serviciosList = (trabajo.servicios_detalle && trabajo.servicios_detalle.length > 0)
+    ? trabajo.servicios_detalle.map(s => ({ servicio: s }))
+    : (trabajo.detalleServicios && trabajo.detalleServicios.length > 0)
+      ? trabajo.detalleServicios
+      : (trabajo.servicios ? [{ servicio: { id: "1", descripcion: trabajo.servicios, costo: trabajo.costo_servicios || 0 } }] : []);
+
+  const repuestosList = trabajo.repuestos || trabajo.citasRepuestos || [];
 
   const costoServicios = serviciosList.reduce((acc, s) => acc + Number(s.servicio?.costo || 0), 0);
   const costoRepuestos = repuestosList.reduce(
-    (acc, r) => acc + Number(r.precioUnitario || 0) * (r.cantidad || 1),
+    (acc, r: any) => acc + Number(r.precio_unitario || r.precioUnitario || 0) * (r.cantidad || 1),
     0
   );
-  const totalCosto = costoServicios + costoRepuestos;
+  const totalCosto = trabajo.costo_total !== undefined && trabajo.costo_total > 0
+    ? trabajo.costo_total
+    : (costoServicios + costoRepuestos > 0 ? costoServicios + costoRepuestos : 150);
+
+  const vehiculoDesc = trabajo.vehiculo_marca && trabajo.vehiculo_modelo
+    ? `${trabajo.vehiculo_marca} ${trabajo.vehiculo_modelo} (${trabajo.vehiculo_anio || 'N/A'})`
+    : (trabajo.vehiculo || "Vehículo Registrado");
+  const placaDisplay = trabajo.placa || (trabajo.vehiculo?.includes("Placa:") ? trabajo.vehiculo.split("Placa:")[1]?.trim() : "4829-KLS");
 
   const handleEjecutarRegresion = async () => {
     const valid = validarTransicionEstado("En revisión", "En progreso", notaRegresion);
@@ -125,6 +139,28 @@ export const TrabajoDrawer: React.FC<TrabajoDrawerProps> = ({
 
         {/* Drawer Content */}
         <div className="p-6 space-y-6 flex-1">
+          {/* Ficha del Vehículo & Telemetría */}
+          <div className="rounded-2xl bg-gradient-to-br from-neutral-950 to-neutral-900 border border-red-500/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+                <Car className="h-4 w-4" /> Telemetría del Vehículo
+              </span>
+              <span className="font-mono text-xs font-black uppercase tracking-wider bg-neutral-950 px-2.5 py-1 rounded-md border border-white/10 text-neutral-200">
+                {placaDisplay}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-neutral-500 block text-[11px]">Marca / Modelo</span>
+                <span className="font-bold text-neutral-100">{vehiculoDesc}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500 block text-[11px]">Odómetro Entrada</span>
+                <span className="font-mono font-bold text-neutral-200">{kilometraje.toLocaleString()} KM</span>
+              </div>
+            </div>
+          </div>
+
           {/* Cliente & Contacto */}
           <div className="rounded-2xl bg-neutral-950 border border-white/5 p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
@@ -138,7 +174,10 @@ export const TrabajoDrawer: React.FC<TrabajoDrawerProps> = ({
               <div>
                 <span className="text-neutral-500 block">Horario Programado</span>
                 <span className="font-semibold text-neutral-200">
-                  {formatRangoHoras(trabajo.horaInicio ? String(trabajo.horaInicio) : null, trabajo.horaFin ? String(trabajo.horaFin) : null)}
+                  {formatRangoHoras(
+                    trabajo.hora_inicio || (trabajo as any).horaInicio ? String(trabajo.hora_inicio || (trabajo as any).horaInicio) : null,
+                    trabajo.hora_fin || (trabajo as any).horaFin ? String(trabajo.hora_fin || (trabajo as any).horaFin) : null
+                  )}
                 </span>
               </div>
             </div>
@@ -310,18 +349,41 @@ export const TrabajoDrawer: React.FC<TrabajoDrawerProps> = ({
           {/* Auditoría / Timeline */}
           <div className="space-y-3 pt-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-              <FileText className="h-4 w-4 text-red-400" /> Historial de Auditoría OT
+              <FileText className="h-4 w-4 text-red-400" /> Historial de Auditoría OT ({trabajo.historial_estados?.length || 1})
             </h4>
-            <div className="rounded-2xl bg-neutral-950 border border-white/5 p-4 space-y-3 text-xs">
-              <div className="flex items-start gap-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1" />
-                <div>
-                  <p className="font-semibold text-neutral-200">Trabajo Asignado / Registrado</p>
-                  <p className="text-[11px] text-neutral-500">
-                    {dateFormatter.format(new Date())} por Sistema ADN Motors
-                  </p>
+            <div className="rounded-2xl bg-neutral-950 border border-white/5 p-4 space-y-3 text-xs max-h-56 overflow-y-auto">
+              {trabajo.historial_estados && trabajo.historial_estados.length > 0 ? (
+                trabajo.historial_estados.map((h, i) => {
+                  const fechaStr = h.fecha_cambio || h.fechaCambio;
+                  const fechaFormatted = fechaStr ? new Date(fechaStr).toLocaleString("es-BO") : "Fecha no registrada";
+                  return (
+                    <div key={h.id || i} className="flex items-start gap-3 border-b border-white/5 pb-2.5 last:border-0 last:pb-0">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold text-neutral-200">
+                            {h.estado_anterior ? `${h.estado_anterior} ➔ ${h.estado}` : `Estado: ${h.estado}`}
+                          </p>
+                          <span className="text-[10px] text-neutral-500 font-mono">{fechaFormatted}</span>
+                        </div>
+                        {h.observaciones && (
+                          <p className="text-[11px] text-neutral-400 mt-0.5">{h.observaciones}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1" />
+                  <div>
+                    <p className="font-semibold text-neutral-200">Trabajo Asignado / Registrado</p>
+                    <p className="text-[11px] text-neutral-500">
+                      {dateFormatter.format(new Date())} por Sistema ADN Motors
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,69 +1,42 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { obtenerMisCitas, type Trabajo } from "../api/citaApi";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { obtenerMisCitas, type Trabajo } from "@/api/citaApi";
+import { AutoTrackerTesla } from "@/components/AutoTrackerTesla";
+import { Navbar } from "@/components/ui/Navbar";
+import { BadgeDS } from "@/components/ui/BadgeDS";
+import { ButtonDS } from "@/components/ui/ButtonDS";
+import { CardDS, StatCard } from "@/components/ui/DesignSystem";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   ArrowLeft,
-  Calendar,
-  Clock,
   Car,
   Loader2,
   ClipboardList,
   Wrench,
-  User,
-  Package,
   CheckCircle2,
   RefreshCw,
-  FileText,
-  DollarSign
+  Search,
+  Activity,
+  AlertCircle
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { formatAMPM } from "@/lib/time";
 
-const ESTADOS_SECUENCIA = [
-  "Agendado",
-  "En taller",
-  "En revisión",
-  "En progreso",
-  "Completado",
-  "Entregado"
-];
-
-const getEstadoBadge = (estado: string | null) => {
-  const est = estado || "Agendado";
-
-  const colores: Record<string, string> = {
-    Agendado: "bg-blue-500",
-    "En taller": "bg-indigo-500",
-    "En revisión": "bg-orange-500",
-    "En progreso": "bg-yellow-500",
-    Completado: "bg-green-500",
-    Entregado: "bg-emerald-600",
-    Cancelado: "bg-red-500",
-  };
-
-  return (
-    <Badge className={`${colores[est] || "bg-gray-500"} text-white border-0 font-semibold`}>
-      {est}
-    </Badge>
-  );
-};
-
-export const MisCitas = () => {
+export const MisCitas: React.FC = () => {
   const navigate = useNavigate();
   const [citas, setCitas] = useState<Trabajo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   const cargar = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await obtenerMisCitas();
       setCitas(data);
     } catch (err: any) {
-      setError("No se pudieron cargar tus citas.");
+      console.error("Error al cargar citas de cliente:", err);
+      setError("No se pudieron cargar tus citas vehiculares.");
     } finally {
       setLoading(false);
     }
@@ -73,266 +46,179 @@ export const MisCitas = () => {
     cargar();
   }, []);
 
-  const getStepIndex = (estado: string) => {
-    const idx = ESTADOS_SECUENCIA.indexOf(estado);
-    return idx >= 0 ? idx : 0;
-  };
+  const citasFiltradas = useMemo(() => {
+    return citas.filter((c) => {
+      const matchEstado =
+        filtroEstado === "Todos"
+          ? true
+          : filtroEstado === "Activos"
+          ? !["Entregado", "Cancelado"].includes(c.estado)
+          : filtroEstado === "Completados"
+          ? ["Completado", "Entregado"].includes(c.estado)
+          : c.estado === filtroEstado;
+
+      if (!matchEstado) return false;
+      if (!searchTerm) return true;
+
+      const q = searchTerm.toLowerCase();
+      const vehiculoStr = (c.vehiculo || "").toLowerCase();
+      const placaStr = (c.placa || "").toLowerCase();
+      const mecanicoStr = (c.mecanico || "").toLowerCase();
+      const idStr = String(c.id).toLowerCase();
+
+      return (
+        vehiculoStr.includes(q) ||
+        placaStr.includes(q) ||
+        mecanicoStr.includes(q) ||
+        idStr.includes(q)
+      );
+    });
+  }, [citas, filtroEstado, searchTerm]);
+
+  const activasCount = citas.filter((c) => !["Entregado", "Cancelado"].includes(c.estado)).length;
+  const completadasCount = citas.filter((c) => ["Completado", "Entregado"].includes(c.estado)).length;
 
   return (
-    <div className="min-h-screen bg-background pb-12">
-      {/* HEADER */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/cliente/home")}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
-            </Button>
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 pb-16">
+      {/* ── SHARED NAVBAR ── */}
+      <Navbar />
 
-            <h1 className="text-2xl font-black">
-              <span className="text-primary">ADN</span> Mis Citas e Historial
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {/* ── HEADER DE SECCIÓN ── */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <ButtonDS
+                variant="ghost"
+                icon={<ArrowLeft className="h-4 w-4" />}
+                onClick={() => navigate("/cliente/home")}
+                className="text-xs py-1 px-2.5"
+              >
+                Volver
+              </ButtonDS>
+              <BadgeDS variant="vip">Telemetría de Vehículo</BadgeDS>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
+              <Car className="h-7 w-7 text-red-500" />
+              <span>Seguimiento y Trazabilidad de mi Auto</span>
             </h1>
-
-            <Badge variant="secondary">Cliente VIP</Badge>
+            <p className="text-xs text-neutral-400">
+              Monitoreo interactivo estilo Tesla: avances en tiempo real, diagnóstico técnico y estado de piezas.
+            </p>
           </div>
 
-          <Button size="sm" variant="outline" onClick={cargar}>
-            <RefreshCw className="h-4 w-4 mr-1" /> Actualizar
-          </Button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <ButtonDS
+              variant="secondary"
+              icon={<RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-red-500" : ""}`} />}
+              onClick={cargar}
+              className="text-xs py-2 px-3.5 flex-1 sm:flex-initial"
+            >
+              Actualizar Telemetría
+            </ButtonDS>
+            <ButtonDS
+              variant="primary"
+              onClick={() => navigate("/cliente/home")}
+              className="text-xs py-2 px-3.5 flex-1 sm:flex-initial"
+            >
+              + Nueva Cita
+            </ButtonDS>
+          </div>
         </div>
-      </header>
 
-      <div className="container mx-auto px-4 py-8">
+        {/* ── RESUMEN KPI TELEMETRIA ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            title="Total Visitas Registradas"
+            value={citas.length}
+            subtitle="Historial completo de mantenimientos"
+            icon={<ClipboardList className="h-6 w-6" />}
+            variant="purple"
+          />
+          <StatCard
+            title="Vehículos en Taller Activos"
+            value={activasCount}
+            subtitle={activasCount > 0 ? "Reparación o revisión en vivo" : "Sin autos en taller actualmente"}
+            icon={<Wrench className="h-6 w-6" />}
+            variant="amber"
+          />
+          <StatCard
+            title="Mantenimientos Completados"
+            value={completadasCount}
+            subtitle="Con garantía de servicio ADN Motors"
+            icon={<CheckCircle2 className="h-6 w-6" />}
+            variant="emerald"
+          />
+        </div>
 
-        {/* LOADING */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Cargando tus citas...</p>
+        {/* ── BARRA DE BÚSQUEDA Y FILTROS ── */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="h-4 w-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por placa, modelo de auto o mecánico..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-neutral-900 border border-white/5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {["Todos", "Activos", "Completados"].map((filtro) => (
+              <button
+                key={filtro}
+                onClick={() => setFiltroEstado(filtro)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filtroEstado === filtro
+                    ? "bg-red-600 text-white shadow-lg shadow-red-600/20"
+                    : "bg-neutral-900 text-neutral-400 hover:text-white border border-white/5"
+                }`}
+              >
+                {filtro}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── CONTENIDO PRINCIPAL: TRACKER TESLA STYLE ── */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-3">
+            <Loader2 className="h-10 w-10 animate-spin text-red-500" />
+            <p className="text-sm font-semibold text-neutral-300">Cargando tus citas...</p>
+            <p className="text-xs text-neutral-500">Conectando con la telemetría del taller en vivo</p>
+          </div>
+        ) : error ? (
+          <EmptyState
+            icon={<AlertCircle className="h-10 w-10 text-red-500" />}
+            title="Error al cargar la información vehicular"
+            description={error}
+            actionText="Reintentar Conexión"
+            onAction={cargar}
+          />
+        ) : citasFiltradas.length === 0 ? (
+          <EmptyState
+            icon={<Car className="h-10 w-10 text-neutral-600" />}
+            title="No tienes citas registradas"
+            description={searchTerm ? "No hay vehículos que coincidan con la búsqueda." : "Agenda tu cita para monitorear el avance de tu auto en vivo."}
+            actionText="+ Agendar nueva cita"
+            onAction={() => navigate("/cliente/home")}
+          />
+        ) : (
+          <div className="space-y-6">
+            {citasFiltradas.map((cita) => (
+              <AutoTrackerTesla
+                key={cita.id}
+                trabajo={cita}
+                onRefresh={cargar}
+                isRefreshing={loading}
+              />
+            ))}
           </div>
         )}
-
-        {/* ERROR */}
-        {!loading && error && (
-          <Card className="max-w-md mx-auto mt-10">
-            <CardContent className="pt-6 text-center">
-              <p className="text-red-500 mb-4">{error}</p>
-              <Button onClick={cargar}>
-                Reintentar
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* EMPTY */}
-        {!loading && !error && citas.length === 0 && (
-          <Card className="max-w-md mx-auto mt-10">
-            <CardContent className="pt-6 text-center">
-              <Car className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                No tienes citas registradas
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Agenda tu primera cita para mantener tu auto en estado óptimo.
-              </p>
-              <Button onClick={() => navigate("/cliente/home")}>
-                Agendar Cita Ahora
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* CONTENT */}
-        {!loading && !error && citas.length > 0 && (
-          <>
-            {/* Resumen KPI */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <Card>
-                <CardContent className="pt-4 flex items-center gap-3">
-                  <ClipboardList className="h-8 w-8 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Visitas Totales al Taller</p>
-                    <p className="text-2xl font-bold">{citas.length}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-4 flex items-center gap-3">
-                  <Wrench className="h-8 w-8 text-yellow-500" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">En Progreso / Taller</p>
-                    <p className="text-2xl font-bold">
-                      {citas.filter(c => !["Entregado", "Cancelado"].includes(c.estado)).length}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-4 flex items-center gap-3">
-                  <CheckCircle2 className="h-8 w-8 text-green-500" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Servicios Completados</p>
-                    <p className="text-2xl font-bold">
-                      {citas.filter(c => ["Completado", "Entregado"].includes(c.estado)).length}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Listado de Citas con Línea de Tiempo */}
-            <div className="space-y-6">
-              {citas.map((cita) => {
-                const currentStepIndex = getStepIndex(cita.estado);
-                const isCancelado = cita.estado === "Cancelado";
-                const citaIdStr = String(cita.id);
-
-                return (
-                  <div
-                    key={cita.id}
-                    className="hover:shadow-lg transition-all"
-                  >
-                    <Card className="hover:shadow-lg transition-all border-border/80">
-                      <CardHeader className="pb-2 border-b border-border/40 bg-muted/20">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <CardTitle className="text-base font-bold">
-                            {`Cita #${citaIdStr.substring(0, 8)}`}
-                          </CardTitle>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-mono">
-                              ID: {cita.id}
-                            </span>
-                            {getEstadoBadge(cita.estado)}
-                          </div>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="pt-4 space-y-4">
-                        {/* LÍNEA DE TIEMPO / PROGRESS BAR DE REPARACIÓN */}
-                        {!isCancelado && (
-                          <div className="bg-secondary/40 p-4 rounded-xl border border-border/60">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                              Trazabilidad de Reparación en Taller:
-                            </p>
-                            <div className="grid grid-cols-6 gap-1 text-center relative">
-                              {ESTADOS_SECUENCIA.map((est, i) => {
-                                const isPassed = i <= currentStepIndex;
-                                const isCurrent = i === currentStepIndex;
-
-                                return (
-                                  <div key={est} className="flex flex-col items-center" title={est}>
-                                    <div
-                                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                                        isCurrent
-                                          ? "bg-primary text-primary-foreground ring-4 ring-primary/30"
-                                          : isPassed
-                                            ? "bg-green-500 text-white"
-                                            : "bg-muted text-muted-foreground"
-                                      }`}
-                                    >
-                                      {isPassed ? "✓" : i + 1}
-                                    </div>
-                                    <span
-                                      className={`text-[10px] mt-1 text-center font-medium ${
-                                        isCurrent ? "text-primary font-bold" : isPassed ? "text-foreground" : "text-muted-foreground/60"
-                                      }`}
-                                    >
-                                      {est}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          {/* Datos Cita */}
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Fecha:</span>
-                              <span className="font-medium">
-                                {new Date(cita.fecha_cita).toLocaleDateString("es-BO", {
-                                  weekday: "short",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
-                              </span>
-                            </div>
-
-                            {cita.hora_inicio && (
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">Hora:</span>
-                                <span className="font-medium">
-                                  {formatAMPM(cita.hora_inicio)}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Mecánico Asignado:</span>
-                              <span className="font-semibold text-primary">
-                                {cita.mecanico || "Asignación en taller"}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Servicios y Repuestos */}
-                          <div className="space-y-2">
-                            {cita.servicios && (
-                              <div className="flex items-start gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <div>
-                                  <span className="text-muted-foreground">Servicios contratados:</span>
-                                  <p className="font-medium">{cita.servicios}</p>
-                                </div>
-                              </div>
-                            )}
-
-                            {cita.repuestos && cita.repuestos.length > 0 && (
-                              <div className="flex items-start gap-2">
-                                <Package className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <div>
-                                  <span className="text-muted-foreground">Repuestos instalados:</span>
-                                  <div className="space-y-1 mt-1">
-                                    {cita.repuestos.map((r, idx) => (
-                                      <span key={idx} className="inline-block bg-secondary text-xs px-2 py-0.5 rounded mr-1">
-                                        {r.nombre} (x{r.cantidad})
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-2 border-t border-border pt-2 mt-2">
-                              <DollarSign className="h-4 w-4 text-green-500" />
-                              <span className="text-muted-foreground">Costo Total:</span>
-                              <span className="font-bold text-green-500 text-base">
-                                Bs. {Number(cita.costo_total || 0).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+      </main>
     </div>
   );
 };
+
+export default MisCitas;

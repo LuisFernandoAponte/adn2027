@@ -346,57 +346,90 @@ export const dashboardCompleto = async (req, res) => {
 export const ingresosPeriodo = async (req, res) => {
   try {
     const { fecha_inicio, fecha_fin } = req.query;
-    const inicio = fecha_inicio ? new Date(fecha_inicio) : new Date(Date.now() - 30 * 86400000);
-    const fin = fecha_fin ? new Date(fecha_fin) : new Date();
+    let inicio = fecha_inicio ? new Date(`${fecha_inicio}T00:00:00.000Z`) : new Date(Date.now() - 30 * 86400000);
+    let fin = fecha_fin ? new Date(`${fecha_fin}T23:59:59.999Z`) : new Date();
 
+    if (isNaN(inicio.getTime())) inicio = new Date(Date.now() - 30 * 86400000);
+    if (isNaN(fin.getTime())) fin = new Date();
+
+    // 1. Facturas e ingresos emitidos en el período
     const facturas = await prisma.factura.findMany({
       where: { fechaEmision: { gte: inicio, lte: fin }, estado: 'emitida' },
       include: {
         cita: {
           include: {
-            cliente: { include: { usuario: { select: { nombreCompleto: true } } } },
+            cliente: {
+              include: {
+                usuario: { select: { nombreCompleto: true, email: true, telefono: true } },
+                vehiculos: true,
+              },
+            },
             empleado: { include: { usuario: { select: { nombreCompleto: true } } } },
             detalleServicios: { include: { servicio: true } },
+            citasRepuestos: { include: { inventario: true } },
           },
         },
       },
+      orderBy: { fechaEmision: 'asc' },
     });
 
-    const ingresosTotales = facturas.reduce((sum, f) => sum + Number(f.total), 0);
+    // 2. Gastos operativos / Egresos en el mismo período
+    const egresos = await prisma.egreso.findMany({
+      where: { fecha: { gte: inicio, lte: fin } },
+      include: { empleado: { include: { usuario: { select: { nombreCompleto: true } } } } },
+      orderBy: { fecha: 'desc' },
+    });
+
+    // 3. Citas / OTs en el período para análisis de volumen y completación
+    const citasPeriodo = await prisma.cita.findMany({
+      where: { fechaCita: { gte: inicio, lte: fin } },
+      select: { id: true, estado: true, fechaCita: true },
+    });
+
+    const ingresosTotales = facturas.reduce((sum, f) => sum + Number(f.total || 0), 0);
+    const egresosTotales = egresos.reduce((sum, e) => sum + Number(e.monto || 0), 0);
+    const utilidadNeta = ingresosTotales - egresosTotales;
+    const margenGananciaPct = ingresosTotales > 0
+      ? Math.round(((utilidadNeta / ingresosTotales) * 100) * 10) / 10
+      : (egresosTotales > 0 ? -100 : 0);
+
     const msDiff = Math.max(fin.getTime() - inicio.getTime(), 86400000);
     const dias = Math.max(Math.ceil(msDiff / 86400000), 1);
-    const promedioDiario = ingresosTotales / dias;
+    const promedioDiario = Math.round((ingresosTotales / dias) * 100) / 100;
+    const ticketPromedio = facturas.length > 0 ? Math.round((ingresosTotales / facturas.length) * 100) / 100 : 0;
 
-    // Citas atendidas / completadas en el período
-    const citasAtendidasCount = await prisma.cita.count({
-      where: {
-        fechaCita: { gte: inicio, lte: fin },
-        estado: { in: ['Completado', 'Entregado'] }
-      }
-    });
+    const citasAtendidasCount = citasPeriodo.filter(c => ['Completado', 'Entregado'].includes(c.estado)).length;
+    const tasaCompletacion = citasPeriodo.length > 0
+      ? Math.round((citasAtendidasCount / citasPeriodo.length) * 100)
+      : 100;
 
-    // Clientes atendidos en el período
     const clientesAtendidosIds = new Set(facturas.map(f => f.clienteId).filter(Boolean));
     const clientesAtendidosCount = clientesAtendidosIds.size;
 
+    // Desglose de Servicios, Mecánicos, Días y Clientes
     const serviciosSet = new Set();
     const porServicioMap = {};
     const porMecanicoMap = {};
     const ingresosPorDiaMap = {};
+    const egresosPorDiaMap = {};
     const gastoPorClienteMap = {};
-
-    let servicioMasSolicitadoObj = { servicio: 'Sin registros', veces: 0 };
-    let servicioMayorIngresoObj = { servicio: 'Sin registros', total: 0 };
-    let mecanicoMayorFacturacionObj = { mecanico: 'Sin registros', total: 0 };
-    let diaMayorIngresosObj = { fecha: 'N/A', total: 0 };
-    let clienteMayorGastoObj = { cliente: 'Sin registros', total: 0 };
+    const marcasVehiculoMap = {};
+    const repuestosUsoMap = {};
 
     for (const f of facturas) {
       const fechaKey = f.fechaEmision ? new Date(f.fechaEmision).toISOString().split('T')[0] : 'Sin fecha';
-      ingresosPorDiaMap[fechaKey] = (ingresosPorDiaMap[fechaKey] || 0) + Number(f.total);
+      ingresosPorDiaMap[fechaKey] = (ingresosPorDiaMap[fechaKey] || 0) + Number(f.total || 0);
 
       const clienteNombre = f.cita?.cliente?.usuario?.nombreCompleto || 'Cliente Taller';
-      gastoPorClienteMap[clienteNombre] = (gastoPorClienteMap[clienteNombre] || 0) + Number(f.total);
+      gastoPorClienteMap[clienteNombre] = (gastoPorClienteMap[clienteNombre] || 0) + Number(f.total || 0);
+
+      // Marca del vehículo
+      const vehs = f.cita?.cliente?.vehiculos || [];
+      const veh = vehs[0];
+      if (veh && veh.marca) {
+        const marcaNom = veh.marca.trim().toUpperCase();
+        marcasVehiculoMap[marcaNom] = (marcasVehiculoMap[marcaNom] || 0) + 1;
+      }
 
       for (const ds of f.cita?.detalleServicios || []) {
         const nombre = ds.servicio.descripcion;
@@ -404,28 +437,115 @@ export const ingresosPeriodo = async (req, res) => {
 
         if (!porServicioMap[nombre]) porServicioMap[nombre] = { servicio: nombre, veces: 0, total: 0 };
         porServicioMap[nombre].veces++;
-        porServicioMap[nombre].total += Number(ds.servicio.costo);
+        porServicioMap[nombre].total += Number(ds.servicio.costo || 0);
+      }
+
+      for (const cr of f.cita?.citasRepuestos || []) {
+        const repNom = cr.inventario?.nombre || 'Repuesto Taller';
+        if (!repuestosUsoMap[repNom]) repuestosUsoMap[repNom] = { repuesto: repNom, cantidad: 0, total: 0 };
+        repuestosUsoMap[repNom].cantidad += (cr.cantidad || 1);
+        repuestosUsoMap[repNom].total += Number(cr.subtotal || 0);
       }
 
       const mecanico = f.cita?.empleado?.usuario?.nombreCompleto || 'Mecánico General';
       if (!porMecanicoMap[mecanico]) porMecanicoMap[mecanico] = { mecanico, trabajos: 0, total_facturado: 0 };
       porMecanicoMap[mecanico].trabajos++;
-      porMecanicoMap[mecanico].total_facturado += Number(f.total);
+      porMecanicoMap[mecanico].total_facturado += Number(f.total || 0);
     }
 
+    // Mapeo de Egresos por día y por categoría
+    const categoriasEgresosLabels = {
+      servicios_basicos: 'Servicios Básicos (Luz, Agua, Net)',
+      sueldos_salarios: 'Sueldos y Adelantos a Personal',
+      alquiler: 'Alquiler del Taller',
+      repuestos_insumos: 'Insumos y Líquidos de Taller',
+      mantenimiento_taller: 'Mantenimiento de Herramientas',
+      impuestos_legales: 'Impuestos y Contabilidad',
+      otros: 'Otros Gastos / Caja Chica',
+    };
+
+    const categoriasEgresosMap = {};
+    for (const [key, label] of Object.entries(categoriasEgresosLabels)) {
+      categoriasEgresosMap[key] = {
+        categoria: key,
+        nombre_legible: label,
+        label,
+        total: 0,
+        count: 0,
+      };
+    }
+
+    for (const e of egresos) {
+      const fechaKey = e.fecha ? new Date(e.fecha).toISOString().split('T')[0] : 'Sin fecha';
+      egresosPorDiaMap[fechaKey] = (egresosPorDiaMap[fechaKey] || 0) + Number(e.monto || 0);
+
+      const cat = e.categoria && categoriasEgresosMap[e.categoria] ? e.categoria : 'otros';
+      categoriasEgresosMap[cat].total += Number(e.monto || 0);
+      categoriasEgresosMap[cat].count += 1;
+    }
+
+    const desgloseCategoriasEgresos = Object.values(categoriasEgresosMap)
+      .map(c => ({
+        ...c,
+        total: Math.round(c.total * 100) / 100,
+        porcentaje: egresosTotales > 0 ? Math.round((c.total / egresosTotales) * 1000) / 10 : 0,
+      }))
+      .filter(c => c.total > 0 || c.count > 0)
+      .sort((a, b) => b.total - a.total);
+
+    // Timeline diario unificado (Flujo de Caja)
+    const todasLasFechas = new Set([
+      ...Object.keys(ingresosPorDiaMap),
+      ...Object.keys(egresosPorDiaMap),
+    ]);
+
+    const timelineFlujo = Array.from(todasLasFechas)
+      .filter(f => f !== 'Sin fecha')
+      .sort()
+      .map(fKey => {
+        const ing = ingresosPorDiaMap[fKey] || 0;
+        const egr = egresosPorDiaMap[fKey] || 0;
+        return {
+          fecha: fKey,
+          ingresos: ing,
+          egresos: egr,
+          utilidad: ing - egr,
+        };
+      });
+
+    // Desglose de servicios ordenados
     const serviciosArr = Object.values(porServicioMap)
       .map(s => ({
         ...s,
-        porcentaje: ingresosTotales > 0 ? Math.round((s.total / ingresosTotales) * 1000) / 10 : 0
+        ticket_promedio: s.veces > 0 ? Math.round((s.total / s.veces) * 100) / 100 : 0,
+        porcentaje: ingresosTotales > 0 ? Math.round((s.total / ingresosTotales) * 1000) / 10 : 0,
       }))
       .sort((a, b) => b.total - a.total);
 
+    // Desglose de mecánicos ordenados
     const mecanicosArr = Object.values(porMecanicoMap)
       .map(m => ({
         ...m,
-        porcentaje: ingresosTotales > 0 ? Math.round((m.total_facturado / ingresosTotales) * 1000) / 10 : 0
+        ticket_promedio: m.trabajos > 0 ? Math.round((m.total_facturado / m.trabajos) * 100) / 100 : 0,
+        porcentaje: ingresosTotales > 0 ? Math.round((m.total_facturado / ingresosTotales) * 1000) / 10 : 0,
       }))
       .sort((a, b) => b.total_facturado - a.total_facturado);
+
+    // Desglose de marcas de vehículos
+    const porMarcaArr = Object.entries(marcasVehiculoMap)
+      .map(([marca, cantidad]) => ({
+        marca,
+        cantidad,
+        porcentaje: facturas.length > 0 ? Math.round((cantidad / facturas.length) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.cantidad - a.cantidad);
+
+    // Resumen de Highlighting
+    let servicioMasSolicitadoObj = { servicio: 'Sin registros', veces: 0 };
+    let servicioMayorIngresoObj = { servicio: 'Sin registros', total: 0 };
+    let mecanicoMayorFacturacionObj = { mecanico: 'Sin registros', total: 0 };
+    let diaMayorIngresosObj = { fecha: 'N/A', total: 0 };
+    let clienteMayorGastoObj = { cliente: 'Sin registros', total: 0 };
 
     if (serviciosArr.length > 0) {
       const masSolicitado = [...serviciosArr].sort((a, b) => b.veces - a.veces)[0];
@@ -456,22 +576,42 @@ export const ingresosPeriodo = async (req, res) => {
       dias,
       indicadores: {
         ingresos_totales: ingresosTotales,
+        egresos_totales: egresosTotales,
+        utilidad_neta: utilidadNeta,
+        margen_ganancia_porcentaje: margenGananciaPct,
         promedio_diario: promedioDiario,
+        ticket_promedio: ticketPromedio,
         servicios_distintos: serviciosSet.size,
         mecanicos_activos: Object.keys(porMecanicoMap).length,
         citas_atendidas: citasAtendidasCount,
-        clientes_atendidos: clientesAtendidosCount
+        clientes_atendidos: clientesAtendidosCount,
+        total_ordenes: citasPeriodo.length,
+        tasa_completacion: tasaCompletacion,
       },
+      balance_financiero: {
+        ingresos_totales: ingresosTotales,
+        egresos_totales: egresosTotales,
+        utilidad_neta: utilidadNeta,
+        margen_ganancia_porcentaje: margenGananciaPct,
+        estado: utilidadNeta >= 0 ? 'SUPERÁVIT NETO' : 'DÉFICIT OPERATIVO',
+        desglose_categorias: desgloseCategoriasEgresos,
+        distribucion_categorias: desgloseCategoriasEgresos,
+      },
+      timeline_flujo: timelineFlujo,
       por_servicio: serviciosArr,
       por_mecanico: mecanicosArr,
+      por_marca: porMarcaArr,
+      por_repuesto: Object.values(repuestosUsoMap).sort((a, b) => b.total - a.total),
       resumen_periodo: {
         servicio_mas_solicitado: servicioMasSolicitadoObj,
         servicio_mayor_ingreso: servicioMayorIngresoObj,
         mecanico_mayor_facturacion: mecanicoMayorFacturacionObj,
         dia_mayor_ingresos: diaMayorIngresosObj,
         cliente_mayor_gasto: clienteMayorGastoObj,
-        total_ordenes_completadas: citasAtendidasCount
-      }
+        total_ordenes_completadas: citasAtendidasCount,
+        total_ordenes_periodo: citasPeriodo.length,
+        tasa_completacion: tasaCompletacion,
+      },
     });
   } catch (error) {
     console.error('Error ingresos periodo:', error);

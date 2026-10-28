@@ -317,11 +317,21 @@ export const AdminTrabajos = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <ButtonDS variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setCrearModalOpen(true)}>
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+            <ButtonDS
+              variant="primary"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => setCrearModalOpen(true)}
+              className="flex-1 sm:flex-initial text-xs sm:text-sm py-2 px-3.5"
+            >
               Registrar Nueva OT
             </ButtonDS>
-            <ButtonDS variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => refetch()}>
+            <ButtonDS
+              variant="secondary"
+              icon={<RefreshCw className="h-4 w-4" />}
+              onClick={() => refetch()}
+              className="flex-1 sm:flex-initial text-xs sm:text-sm py-2 px-3.5"
+            >
               Actualizar
             </ButtonDS>
           </div>
@@ -379,7 +389,7 @@ export const AdminTrabajos = () => {
           </div>
 
           {/* Tabs por Estado */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 w-full min-w-0 pr-4 flex-nowrap border-b border-white/5">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 w-full min-w-0 pr-4 flex-nowrap border-b border-white/5 no-scrollbar touch-scroll">
             {estadosTabs.map((tab) => {
               const count = tab === "Todos" ? totalOrdenes : listData.filter((t) => (t.estado || "Agendado") === tab).length;
               const isSelected = filtroEstado === tab;

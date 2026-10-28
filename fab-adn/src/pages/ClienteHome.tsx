@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
 import AgendarCitaModal from "@/components/AgendarCitaModal";
+import { AutoTrackerTesla } from "@/components/AutoTrackerTesla";
 import { obtenerMisCitas, type Trabajo } from "@/api/citaApi";
 import { API_BASE } from "@/api/config";
 import { getUser, getToken } from "@/lib/auth";
@@ -247,40 +248,16 @@ const ClienteHome: React.FC = () => {
           </div>
         </section>
 
-        {/* ── ESTADO EN VIVO DE VEHÍCULO EN TALLER ── */}
+        {/* ── ESTADO EN VIVO DE VEHÍCULO EN TALLER (MODELO TESLA TRACKER) ── */}
         {citaEnProgreso && (
-          <CardDS className="border-red-900/40 bg-gradient-to-r from-neutral-900 via-neutral-900 to-red-950/30 p-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-                  </span>
-                  <span className={DESIGN_TOKENS.colors.label}>Monitoreo en Vivo</span>
-                </div>
-                <h3 className="text-lg font-bold text-neutral-100 flex items-center gap-2">
-                  <Car className="h-5 w-5 text-red-500" />
-                  Reparación Activa: Cita #{citaEnProgreso.id ? String(citaEnProgreso.id).substring(0, 8) : "N/A"}
-                </h3>
-                <p className="text-xs text-neutral-400">
-                  Estado actual: <span className="font-semibold text-neutral-200">{citaEnProgreso.estado}</span> — Mecánico asignado: {citaEnProgreso.empleado?.usuario?.nombreCompleto || "Asignado"}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <BadgeDS variant={getEstadoBadgeVariant(citaEnProgreso.estado)}>
-                  {citaEnProgreso.estado}
-                </BadgeDS>
-                <ButtonDS
-                  variant="secondary"
-                  onClick={() => navigate("/cliente/mis-citas")}
-                >
-                  Ver Progreso ➔
-                </ButtonDS>
-              </div>
-            </div>
-          </CardDS>
+          <section aria-label="Seguimiento de vehículo en vivo">
+            <AutoTrackerTesla
+              trabajo={citaEnProgreso}
+              onRefresh={cargarDatosCliente}
+              isRefreshing={loading}
+              className="my-2"
+            />
+          </section>
         )}
 
         {/* ── ACCIONES RÁPIDAS (GRID 4 COLUMNAS) ── */}

@@ -16,6 +16,7 @@ router.use(requireRole('Administrador', 'Secretaria'));
 
 router.get('/', getEgresos);
 router.get('/resumen', getResumenFinanciero);
+router.get('/balance/resumen', getResumenFinanciero);
 router.post('/', crearEgreso);
 router.put('/:id', actualizarEgreso);
 router.delete('/:id', eliminarEgreso);

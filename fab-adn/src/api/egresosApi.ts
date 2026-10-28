@@ -62,7 +62,7 @@ export const obtenerEgresos = async (params?: {
   desde?: string;
   hasta?: string;
 }): Promise<EgresoItem[]> => {
-  const res = await axios.get(`${API_BASE}/egresos`, {
+  const res = await axios.get(`${API_BASE}/api/egresos`, {
     ...getHeaders(),
     params,
   });
@@ -73,7 +73,7 @@ export const obtenerBalanceResumen = async (params?: {
   mes?: number;
   anio?: number;
 }): Promise<ResumenFinanciero> => {
-  const res = await axios.get(`${API_BASE}/egresos/balance/resumen`, {
+  const res = await axios.get(`${API_BASE}/api/egresos/balance/resumen`, {
     ...getHeaders(),
     params,
   });
@@ -90,11 +90,11 @@ export const crearEgreso = async (data: {
   empleadoId?: string;
   observaciones?: string;
 }) => {
-  const res = await axios.post(`${API_BASE}/egresos`, data, getHeaders());
+  const res = await axios.post(`${API_BASE}/api/egresos`, data, getHeaders());
   return res.data;
 };
 
 export const eliminarEgreso = async (id: string) => {
-  const res = await axios.delete(`${API_BASE}/egresos/${id}`, getHeaders());
+  const res = await axios.delete(`${API_BASE}/api/egresos/${id}`, getHeaders());
   return res.data;
 };

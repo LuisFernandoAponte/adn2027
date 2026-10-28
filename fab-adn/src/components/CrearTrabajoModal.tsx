@@ -11,6 +11,7 @@ import { DESIGN_TOKENS } from "@/components/ui/designTokens";
 import { API_BASE } from "@/api/config";
 import { getToken } from "@/lib/auth";
 import { currencyFormatter } from "@/features/empleado/stateMachine";
+import { ImageUploadDropzone } from "@/components/ui/ImageUploadDropzone";
 
 interface CrearTrabajoModalProps {
   isOpen: boolean;
@@ -231,34 +232,6 @@ export const CrearTrabajoModal: React.FC<CrearTrabajoModalProps> = ({
     return Math.max(0, subtotalServicios - Number(descuento || 0));
   }, [subtotalServicios, descuento]);
 
-  const handleFotoInicialUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      setErrorMsg("La imagen de recepción no debe superar 8 MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      setSubiendoFoto(true);
-      try {
-        const res = await axios.post(`${API_BASE}/api/citas/admin/citas/subir-temp`, { fotoBase64: base64 }).catch(() => null);
-        if (res?.data?.url) {
-          setFotosUpload((prev) => [...prev, res.data.url]);
-        } else {
-          // If no temp endpoint, store base64 directly or upload on demand
-          setFotosUpload((prev) => [...prev, base64]);
-        }
-      } catch (err) {
-        setFotosUpload((prev) => [...prev, base64]);
-      } finally {
-        setSubiendoFoto(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleCrearOrden = async () => {
     if (!empleadoId) {
       setErrorMsg("Debes seleccionar un mecánico responsable para el trabajo");
@@ -316,7 +289,7 @@ export const CrearTrabajoModal: React.FC<CrearTrabajoModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-neutral-900 border-white/10 text-neutral-100 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <DialogContent className="w-[96vw] max-w-3xl bg-neutral-900 border-white/10 text-neutral-100 shadow-2xl overflow-y-auto max-h-[94dvh] sm:max-h-[90vh] p-4 sm:p-6 rounded-2xl touch-scroll safe-area-bottom">
         <DialogHeader className="border-b border-white/10 pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold text-neutral-100">
             <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500">
@@ -739,41 +712,19 @@ export const CrearTrabajoModal: React.FC<CrearTrabajoModalProps> = ({
           </div>
 
           {/* 8. ADJUNTAR FOTO INICIAL DE RECEPCIÓN (OPCIONAL - CLOUDINARY) */}
-          <div className="p-4 rounded-2xl bg-neutral-950 border border-white/5 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className={DESIGN_TOKENS.colors.label + " flex items-center gap-1.5"}>
-                <Camera className="h-4 w-4 text-red-400" />
-                <span>8. Adjuntar Foto de Recepción / Estado Inicial del Vehículo (Cloudinary Opcional)</span>
-              </label>
-
-              <label className="cursor-pointer inline-flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs px-3 py-1 rounded-lg border border-white/10 transition-colors font-semibold">
-                <Upload className="h-3.5 w-3.5 text-red-400" />
-                {subiendoFoto ? "Procesando..." : "Subir Foto"}
-                <input type="file" accept="image/*" onChange={handleFotoInicialUpload} disabled={subiendoFoto} className="hidden" />
-              </label>
-            </div>
-
-            {fotosUpload.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {fotosUpload.map((img, idx) => (
-                  <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/10 group bg-neutral-900">
-                    <img src={img} alt={`Recepción ${idx}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setFotosUpload((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-0.5 right-0.5 p-1 bg-red-600/90 text-white rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="p-4 rounded-2xl bg-neutral-950 border border-white/5">
+            <ImageUploadDropzone
+              photos={fotosUpload}
+              onChange={setFotosUpload}
+              maxFiles={6}
+              label="8. Fotografías de Recepción del Auto (Check-in)"
+              description="Fotos del estado inicial, rayones, placa u odómetro. Compresión WebP HD automática."
+            />
           </div>
         </div>
 
-        <DialogFooter className="border-t border-white/10 pt-3 gap-2">
-          <ButtonDS variant="secondary" onClick={onClose}>
+        <DialogFooter className="border-t border-white/10 pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
+          <ButtonDS variant="secondary" onClick={onClose} className="w-full sm:w-auto">
             Cancelar
           </ButtonDS>
           <ButtonDS
@@ -781,6 +732,7 @@ export const CrearTrabajoModal: React.FC<CrearTrabajoModalProps> = ({
             isLoading={submitting}
             onClick={handleCrearOrden}
             icon={<Plus className="h-4 w-4" />}
+            className="w-full sm:w-auto"
           >
             Registrar Orden de Trabajo (OT)
           </ButtonDS>

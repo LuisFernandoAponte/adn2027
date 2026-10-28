@@ -8,7 +8,7 @@ import { sendSystemEmail } from './utils/mailer.js';
 dotenv.config();
 
 import { config } from './config/index.js';
-import { apiLimiter, authLimiter } from './middlewares/auth.middleware.js';
+import { apiLimiter, authLimiter, verifyToken, requireRole } from './middlewares/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import clienteRoutes from './routes/cliente.routes.js';
 import servicioRoutes from './routes/servicio.routes.js';
@@ -70,8 +70,8 @@ app.use(helmet({
   xContentTypeOptions: true,
 }));
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth/', authLimiter);
@@ -99,13 +99,13 @@ app.get(['/health', '/api/health'], async (req, res) => {
       status: 'error',
       service: 'adn-motors-backend',
       database: 'disconnected',
-      error: err.message,
+      error: config.nodeEnv === 'production' ? 'Database connection error' : err.message,
       timestamp: new Date().toISOString()
     });
   }
 });
 
-app.get('/api/test-email', async (req, res) => {
+app.get('/api/test-email', verifyToken, requireRole('Administrador'), async (req, res) => {
   const to = req.query.to || process.env.EMAIL_USER;
   const brevoKey = process.env.BREVO_API_KEY;
   const resendKey = process.env.RESEND_API_KEY;
@@ -202,6 +202,7 @@ app.use('/api/servicio', servicioRoutes);
 app.use('/api/servicios', servicioRoutes);
 app.use('/api', citaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/usuario', usuarioRoutes);
 app.use('/api/roles', rolRoutes);
 app.use('/api/permisos', permisoRoutes);
 app.use('/api/facturas', facturaRoutes);
@@ -215,6 +216,8 @@ app.use('/api', exportRoutes);
 app.use('/api/pagos', pagoRoutes);
 app.use('/api', appointmentsRoutes);
 app.use('/api/egresos', egresosRoutes);
+app.use('/api/egreso', egresosRoutes);
+app.use('/egresos', egresosRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
 app.use('/vehiculos', vehiculoRoutes);
 

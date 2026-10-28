@@ -222,16 +222,22 @@ const EmpleadoPanel: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
             <ButtonDS
               variant="primary"
               icon={<Plus className="h-4 w-4" />}
               onClick={() => setIsCrearModalOpen(true)}
+              className="flex-1 sm:flex-initial text-xs sm:text-sm py-2 px-3.5"
             >
               Registrar Entrada OT
             </ButtonDS>
-            <ButtonDS variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={cargarTrabajos}>
-              Actualizar Lista
+            <ButtonDS
+              variant="secondary"
+              icon={<RefreshCw className="h-4 w-4" />}
+              onClick={cargarTrabajos}
+              className="flex-1 sm:flex-initial text-xs sm:text-sm py-2 px-3.5"
+            >
+              Actualizar
             </ButtonDS>
           </div>
         </div>

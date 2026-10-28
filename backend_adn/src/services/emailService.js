@@ -27,6 +27,12 @@ class EmailService {
   }
 
   async sendWelcomeEmail(userEmail, userName) {
+    // Protección de cuota Gmail: solo enviar correos de código de verificación
+    if (process.env.ENABLE_WELCOME_EMAIL !== 'true') {
+      console.log(`ℹ️ [EmailService] Correo de bienvenida omitido para reservar cuota gratuita de Gmail (${userEmail})`);
+      return { success: true, suppressed: true };
+    }
+
     if (!userEmail) {
       console.warn('No hay email para enviar bienvenida');
       return { success: false, reason: 'No email provided' };
@@ -135,6 +141,11 @@ class EmailService {
   }
 
   async sendAppointmentConfirmation(clientEmail, appointmentData) {
+    if (process.env.SEND_APPOINTMENT_EMAILS !== 'true') {
+      console.log(`ℹ️ [EmailService] Notificación de cita omitida para reservar tokens de Gmail solo a códigos de verificación (${clientEmail})`);
+      return { success: true, suppressed: true };
+    }
+
     if (!clientEmail) {
       console.warn('⚠️ No hay email del cliente para enviar confirmación');
       return { success: false, reason: 'No email provided' };

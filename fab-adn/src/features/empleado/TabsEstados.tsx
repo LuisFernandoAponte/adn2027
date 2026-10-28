@@ -26,7 +26,7 @@ export const TabsEstados: React.FC<TabsEstadosProps> = memo(({
     <div
       role="tablist"
       aria-label="Filtro de estados de órdenes de trabajo"
-      className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-white/5"
+      className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/5 no-scrollbar touch-scroll"
     >
       {TABS.map((tab) => {
         const count = contadores[tab.id] || 0;

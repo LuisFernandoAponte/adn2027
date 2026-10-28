@@ -19,6 +19,7 @@ import { subirFotoTrabajo, eliminarFotoTrabajo } from "@/api/citaApi";
 import { API_BASE } from "@/api/config";
 import { getToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { ImageUploadDropzone } from "@/components/ui/ImageUploadDropzone";
 
 interface DetalleTrabajoDrawerProps {
   trabajo: Trabajo | null;
@@ -156,7 +157,7 @@ export const DetalleTrabajoDrawer: React.FC<DetalleTrabajoDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-2xl bg-neutral-900 border-l border-white/10 h-full overflow-y-auto flex flex-col shadow-2xl">
+      <div className="w-full max-w-2xl bg-neutral-900 border-l border-white/10 h-[100dvh] overflow-y-auto flex flex-col shadow-2xl safe-area-bottom touch-scroll">
         {/* Sticky Header & Tabs Combo Container */}
         <div className="sticky top-0 z-20 bg-neutral-950/95 backdrop-blur-md border-b border-white/10">
           {/* Header Bar */}
@@ -414,88 +415,33 @@ export const DetalleTrabajoDrawer: React.FC<DetalleTrabajoDrawerProps> = ({
           </div>
         ) : activeTab === "fotos" ? (
           /* Cloudinary Fotos Tab */
-          <div className="p-6 space-y-5 flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-neutral-100 flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-red-500" />
-                  Fotografías & Evidencias del Trabajo
-                </h3>
-                <p className="text-xs text-neutral-400 mt-0.5">
-                  Fotos de repuestos viejos cambiados, respaldos de reparación e inspecciones (Cloudinary).
-                </p>
-              </div>
-
-              <label className="cursor-pointer inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-lg shadow-red-600/20">
-                <Upload className="h-4 w-4" />
-                {subiendoFoto ? "Subiendo a Cloudinary..." : "Subir Foto"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  disabled={subiendoFoto}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {fotosList.length === 0 ? (
-              <div className="p-10 text-center rounded-2xl bg-neutral-950 border border-white/5 space-y-3">
-                <ImageIcon className="h-10 w-10 text-neutral-600 mx-auto" />
-                <p className="text-xs font-semibold text-neutral-300">No hay fotos de evidencia adjuntas a esta Orden.</p>
-                <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
-                  Sube fotos de los repuestos retirados o el progreso técnico para brindar transparencia total al cliente.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {fotosList.map((url, idx) => (
-                  <div key={idx} className="relative group rounded-xl overflow-hidden border border-white/10 bg-neutral-950 aspect-square">
-                    <img
-                      src={url}
-                      alt={`Evidencia ${idx + 1}`}
-                      className="w-full h-full object-cover transition-transform group-hover:scale-105 cursor-pointer"
-                      onClick={() => setFotoModalUrl(url)}
-                    />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
-                      <button
-                        onClick={() => setFotoModalUrl(url)}
-                        className="p-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors"
-                        title="Ver imagen completa"
-                      >
-                        <ZoomIn className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEliminarFoto(url)}
-                        className="p-2 rounded-lg bg-red-500/80 text-white hover:bg-red-500 transition-colors"
-                        title="Eliminar evidencia"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Modal Zoom Foto */}
-            {fotoModalUrl && (
-              <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-                <div className="relative max-w-4xl max-h-[90vh] bg-neutral-950 rounded-2xl border border-white/10 p-2 overflow-hidden shadow-2xl">
-                  <button
-                    onClick={() => setFotoModalUrl(null)}
-                    className="absolute top-4 right-4 z-10 p-2 rounded-xl bg-black/60 text-white hover:bg-black transition-colors"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                  <img
-                    src={fotoModalUrl}
-                    alt="Evidencia Zoom"
-                    className="max-h-[85vh] w-auto object-contain rounded-xl"
-                  />
-                </div>
-              </div>
-            )}
+          <div className="p-4 sm:p-6 space-y-5 flex-1">
+            <ImageUploadDropzone
+              photos={fotosList}
+              onChange={async (newPhotos) => {
+                if (newPhotos.length < fotosList.length) {
+                  const removedUrl = fotosList.find((url) => !newPhotos.includes(url));
+                  if (removedUrl) {
+                    await handleEliminarFoto(removedUrl);
+                    return;
+                  }
+                }
+                setFotosList(newPhotos);
+              }}
+              onUploadCloudinary={async (base64) => {
+                const token = getToken();
+                if (!token) throw new Error("No autenticado");
+                const res = await subirFotoTrabajo(token, trabajo.id, base64);
+                if (res.success && res.fotos) {
+                  setFotosList(res.fotos);
+                  return res.fotos[res.fotos.length - 1];
+                }
+                throw new Error("Error al adjuntar foto a la orden");
+              }}
+              maxFiles={12}
+              label="Fotografías & Evidencias del Trabajo"
+              description="Fotos de repuestos viejos, piezas instaladas o estado mecánico del vehículo."
+            />
           </div>
         ) : (
           /* Historial de Vehículo Tab */

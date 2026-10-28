@@ -46,3 +46,15 @@ export const config = {
     authWindowMs: parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MS) || 60000,
   }
 };
+
+// Validación de seguridad estricta para entorno productivo
+if (config.nodeEnv === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_change_in_production' || process.env.JWT_SECRET.length < 32) {
+    console.error('❌ ERROR FATAL DE SEGURIDAD: JWT_SECRET no está configurado o es inseguro en producción.');
+    process.exit(1);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ ERROR FATAL: DATABASE_URL no está definida en las variables de entorno.');
+    process.exit(1);
+  }
+}

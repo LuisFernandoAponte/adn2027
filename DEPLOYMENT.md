@@ -67,7 +67,7 @@ npm run db:setup:supabase
 *(Alternativa Manual si prefieres usar el Dashboard de Supabase):*
 1. `npx prisma db push` (crea las tablas).
 2. Ve al **SQL Editor** de Supabase, pega el archivo [backend_adn/database/supabase_setup.sql](file:///c:/Users/alamb/Downloads/adn_motors-main/adn_motors-main/backend_adn/database/supabase_setup.sql) y dale **Run**.
-3. `node prisma/seed.js` (siembra roles, usuario admin `admin@adnmotors.com` / `admin1919`, empleados y catálogo).
+3. `node prisma/seed.js` (siembra roles, usuario admin inicial configurable por `ADMIN_INITIAL_PASSWORD`, empleados y catálogo).
 ```
 
 ---
@@ -96,7 +96,7 @@ npm run db:setup:supabase
 
 1. Abre la URL del backend `/health` (ej. `https://adn-motors-backend.onrender.com/health`) y verifica que devuelva `{"status":"ok","database":"connected"}`.
 2. Abre la URL del frontend (ej. `https://adn-motors-frontend.onrender.com`).
-3. Inicia sesión con las credenciales creadas en el seed (`admin@adnmotors.com` / `admin1919`).
+3. Inicia sesión con la cuenta de administrador y cambia tu contraseña inmediatamente desde Mi Perfil por seguridad.
 4. Prueba agendar una cita o pre-reserva desde la página principal.
 5. Revisa los logs en Render para verificar que no existan errores de conexión o CORS.
 

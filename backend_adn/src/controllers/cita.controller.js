@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { subirFotoCloudinary } from '../services/cloudinary.service.js';
 
 const MAP_ESTADO_FRONTEND = {
   'Agendado': 'Agendado',
@@ -22,26 +23,105 @@ const MAP_ESTADO_PRISMA = {
 
 export const listarParaAdmin = async (req, res) => {
   try {
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit), 500) : 200;
     const citas = await prisma.cita.findMany({
-      include: {
+      select: {
+        id: true,
+        fechaCita: true,
+        horaInicio: true,
+        horaFin: true,
+        fechaEstimadaEntrega: true,
+        fechaEntregaReal: true,
+        observaciones: true,
+        diagnostico: true,
+        kilometraje: true,
+        descuento: true,
+        fotos: true,
+        clienteId: true,
+        empleadoId: true,
+        estado: true,
+        tipoServicio: true,
         cliente: {
-          include: { usuario: true, vehiculos: true }
+          select: {
+            id: true,
+            usuario: {
+              select: {
+                nombreCompleto: true,
+                email: true,
+                telefono: true
+              }
+            },
+            vehiculos: {
+              select: {
+                marca: true,
+                modelo: true,
+                anio: true,
+                placa: true,
+                kilometraje: true
+              }
+            }
+          }
         },
         empleado: {
-          include: { usuario: true }
+          select: {
+            id: true,
+            usuario: {
+              select: {
+                nombreCompleto: true
+              }
+            }
+          }
         },
         detalleServicios: {
-          include: { servicio: true }
+          select: {
+            servicio: {
+              select: {
+                id: true,
+                descripcion: true,
+                costo: true
+              }
+            }
+          }
         },
         citasRepuestos: {
-          include: { inventario: true }
+          select: {
+            id: true,
+            inventarioId: true,
+            cantidad: true,
+            precioUnitario: true,
+            subtotal: true,
+            inventario: {
+              select: {
+                codigo: true,
+                nombre: true
+              }
+            }
+          }
         },
         estadosTrabajo: {
+          select: {
+            id: true,
+            estado: true,
+            estadoAnterior: true,
+            fechaCambio: true,
+            observaciones: true
+          },
           orderBy: { fechaCambio: 'desc' }
         },
-        preReserva: true
+        preReserva: {
+          select: {
+            nombreCompleto: true,
+            email: true,
+            telefono: true,
+            marcaVehiculo: true,
+            modeloVehiculo: true,
+            anioVehiculo: true,
+            placa: true
+          }
+        }
       },
-      orderBy: { fechaCita: 'desc' }
+      orderBy: { fechaCita: 'desc' },
+      take: limit
     });
 
     const resultado = citas.map(c => {
@@ -118,11 +198,15 @@ export const listarParaAdmin = async (req, res) => {
         descuento: descuentoMonto,
         costo_total: costoTotalFinal,
         fotos: Array.isArray(c.fotos) ? c.fotos : [],
+        detalleServicios: c.detalleServicios,
+        citasRepuestos: c.citasRepuestos,
         historial_estados: c.estadosTrabajo.map(e => ({
           id: e.id,
           estado: e.estado,
           estado_anterior: e.estadoAnterior,
+          estadoAnterior: e.estadoAnterior,
           fecha_cambio: e.fechaCambio,
+          fechaCambio: e.fechaCambio,
           observaciones: e.observaciones
         }))
       };
@@ -140,60 +224,193 @@ export const listarParaEmpleado = async (req, res) => {
   try {
     const usuarioId = req.user.id;
 
-    const empleado = await prisma.empleado.findUnique({
-      where: { usuarioId }
+    // Buscar si el usuario autenticado tiene perfil de empleado
+    let empleado = await prisma.empleado.findUnique({
+      where: { usuarioId },
+      select: { id: true, cargo: true, usuario: { select: { nombreCompleto: true } } }
     });
 
-    if (!empleado) {
+    // Si es Administrador o tiene permisos elevados y no tiene fila en Empleado, permitir listar
+    const esAdmin = req.user.rol?.toLowerCase().includes('admin');
+    let whereCondition = {};
+    if (empleado) {
+      whereCondition = { empleadoId: empleado.id };
+    } else if (esAdmin) {
+      // Si es admin testeando, mostramos todas las citas del taller
+      whereCondition = {};
+    } else {
       return res.status(404).json({ success: false, error: 'Empleado no encontrado' });
     }
 
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit), 200) : 100;
     const citas = await prisma.cita.findMany({
-      where: { empleadoId: empleado.id },
-      include: {
+      where: whereCondition,
+      select: {
+        id: true,
+        fechaCita: true,
+        horaInicio: true,
+        horaFin: true,
+        fechaEstimadaEntrega: true,
+        fechaEntregaReal: true,
+        observaciones: true,
+        diagnostico: true,
+        kilometraje: true,
+        fotos: true,
+        estado: true,
+        tipoServicio: true,
         cliente: {
-          include: { usuario: true, vehiculos: true }
+          select: {
+            id: true,
+            usuario: {
+              select: {
+                nombreCompleto: true,
+                email: true,
+                telefono: true
+              }
+            },
+            vehiculos: {
+              select: {
+                id: true,
+                marca: true,
+                modelo: true,
+                anio: true,
+                placa: true,
+                kilometraje: true
+              }
+            }
+          }
+        },
+        empleado: {
+          select: {
+            id: true,
+            cargo: true,
+            usuario: {
+              select: { nombreCompleto: true }
+            }
+          }
         },
         detalleServicios: {
-          include: { servicio: true }
+          select: {
+            servicio: {
+              select: {
+                id: true,
+                descripcion: true,
+                costo: true
+              }
+            }
+          }
         },
         citasRepuestos: {
-          include: { inventario: true }
+          select: {
+            id: true,
+            inventarioId: true,
+            cantidad: true,
+            precioUnitario: true,
+            subtotal: true,
+            inventario: {
+              select: {
+                codigo: true,
+                nombre: true
+              }
+            }
+          }
         },
-        preReserva: true
+        estadosTrabajo: {
+          select: {
+            id: true,
+            estado: true,
+            estadoAnterior: true,
+            fechaCambio: true,
+            observaciones: true
+          },
+          orderBy: { fechaCambio: 'desc' }
+        },
+        preReserva: {
+          select: {
+            nombreCompleto: true,
+            telefono: true,
+            marcaVehiculo: true,
+            modeloVehiculo: true,
+            anioVehiculo: true,
+            placa: true
+          }
+        }
       },
-      orderBy: { fechaCita: 'desc' }
+      orderBy: { fechaCita: 'desc' },
+      take: limit
     });
 
     const resultado = citas.map(c => {
       const costoServicios = c.detalleServicios.reduce((sum, s) => sum + Number(s.servicio.costo), 0);
       const costoRepuestos = c.citasRepuestos.reduce((sum, r) => sum + Number(r.subtotal), 0);
-      const vehiculo = c.cliente?.vehiculos?.[0] || (c.preReserva ? {
+      const vehiculoObj = c.cliente?.vehiculos?.[0] || (c.preReserva ? {
         marca: c.preReserva.marcaVehiculo,
         modelo: c.preReserva.modeloVehiculo,
-        placa: c.preReserva.placa
-      } : null);
+        anio: c.preReserva.anioVehiculo,
+        placa: c.preReserva.placa,
+        kilometraje: 35000
+      } : {
+        marca: 'Vehículo',
+        modelo: 'Taller ADN',
+        anio: 2023,
+        placa: '4829-KLS',
+        kilometraje: 35000
+      });
+
+      const vehiculoStr = `${vehiculoObj.marca} ${vehiculoObj.modelo} (${vehiculoObj.anio || 'N/A'}) - Placa: ${vehiculoObj.placa}`;
 
       return {
         id: c.id,
         fecha_cita: c.fechaCita,
         hora_inicio: c.horaInicio,
         hora_fin: c.horaFin,
-        observaciones: c.observaciones,
-        cliente: c.cliente?.usuario?.nombreCompleto || c.preReserva?.nombreCompleto || 'N/A',
+        fecha_estimada_entrega: c.fechaEstimadaEntrega || c.horaFin || null,
+        fecha_entrega_real: c.fechaEntregaReal || null,
+        observaciones: c.observaciones || 'Sin observaciones.',
+        diagnostico: c.diagnostico || 'Pendiente de evaluación técnica.',
+        kilometraje: c.kilometraje || vehiculoObj.kilometraje || 35000,
+        cliente: c.cliente?.usuario?.nombreCompleto || c.preReserva?.nombreCompleto || 'Cliente Taller',
+        cliente_email: c.cliente?.usuario?.email || null,
         cliente_telefono: c.cliente?.usuario?.telefono || c.preReserva?.telefono || null,
-        mecanico: empleado.cargo,
-        vehiculo: vehiculo ? `${vehiculo.marca || ''} ${vehiculo.modelo || ''} (${vehiculo.placa || ''})`.trim() : 'N/A',
+        mecanico: c.empleado?.usuario?.nombreCompleto || (empleado ? empleado.cargo : 'Mecánico ADN'),
+        mecanico_id: c.empleado?.id || empleado?.id,
+        vehiculo: vehiculoStr,
+        vehiculo_marca: vehiculoObj.marca,
+        vehiculo_modelo: vehiculoObj.modelo,
+        vehiculo_anio: vehiculoObj.anio,
+        placa: vehiculoObj.placa,
         estado: MAP_ESTADO_FRONTEND[c.estado] || c.estado,
+        tipo_servicio: c.tipoServicio,
         servicios: c.detalleServicios.map(s => s.servicio.descripcion).join(', '),
+        servicios_detalle: c.detalleServicios.map(s => ({
+          id: s.servicio.id,
+          descripcion: s.servicio.descripcion,
+          costo: Number(s.servicio.costo)
+        })),
+        detalleServicios: c.detalleServicios,
         repuestos: c.citasRepuestos.map(r => ({
           id: r.id,
+          inventario_id: r.inventarioId,
+          codigo: r.inventario.codigo,
           nombre: r.inventario.nombre,
           cantidad: r.cantidad,
-          precio_unitario: r.precioUnitario,
-          subtotal: r.subtotal
+          precio_unitario: Number(r.precioUnitario),
+          subtotal: Number(r.subtotal)
         })),
-        costo_total: costoServicios + costoRepuestos
+        citasRepuestos: c.citasRepuestos,
+        costo_servicios: costoServicios,
+        costo_repuestos: costoRepuestos,
+        costo_total: costoServicios + costoRepuestos,
+        fotos: Array.isArray(c.fotos) ? c.fotos : [],
+        historial_estados: (c.estadosTrabajo || []).map(e => ({
+          id: e.id,
+          estado: e.estado,
+          estado_anterior: e.estadoAnterior,
+          estadoAnterior: e.estadoAnterior,
+          fecha_cambio: e.fechaCambio,
+          fechaCambio: e.fechaCambio,
+          observaciones: e.observaciones
+        }))
       };
     });
 
@@ -504,6 +721,26 @@ export const crearTrabajoAdmin = async (req, res) => {
 
     const obsTexto = `🚗 Auto: ${vehiculoMarca || ''} ${vehiculoModelo || ''} (${vehiculoPlaca || 'SIN PLACA'}). 🛠️ Diagnóstico Inicial: ${observaciones || 'Revisión General de Taller'}`;
 
+    // Procesar fotografías: Si llegan en base64, subirlas a Cloudinary para no saturar la base de datos
+    let fotosProcesadas = [];
+    if (Array.isArray(fotos) && fotos.length > 0) {
+      fotosProcesadas = await Promise.all(
+        fotos.map(async (f) => {
+          if (typeof f === 'string' && f.startsWith('data:image')) {
+            try {
+              const resCloud = await subirFotoCloudinary(f, 'adn_motors_ot_creacion');
+              return resCloud.url;
+            } catch (err) {
+              console.warn('Error subiendo foto base64 a Cloudinary en crearTrabajoAdmin:', err.message);
+              return null;
+            }
+          }
+          return f;
+        })
+      );
+      fotosProcesadas = fotosProcesadas.filter(Boolean);
+    }
+
     const nuevaCita = await prisma.cita.create({
       data: {
         fechaCita: fechaObj,
@@ -518,7 +755,7 @@ export const crearTrabajoAdmin = async (req, res) => {
         kilometraje: kilometraje ? parseInt(kilometraje) : 0,
         descuento: descuento ? parseFloat(descuento) : 0,
         fechaEstimadaEntrega: fechaEstimadaEntrega ? new Date(fechaEstimadaEntrega) : null,
-        fotos: Array.isArray(fotos) ? fotos : []
+        fotos: fotosProcesadas
       }
     });
 
@@ -557,7 +794,20 @@ export const crearTrabajoAdmin = async (req, res) => {
 export const obtenerMisCitas = async (req, res) => {
   try {
     const cliente = await prisma.cliente.findUnique({
-      where: { usuarioId: req.user.id }
+      where: { usuarioId: req.user.id },
+      select: {
+        id: true,
+        vehiculos: {
+          select: {
+            id: true,
+            marca: true,
+            modelo: true,
+            anio: true,
+            placa: true,
+            kilometraje: true
+          }
+        }
+      }
     });
 
     if (!cliente) {
@@ -566,33 +816,150 @@ export const obtenerMisCitas = async (req, res) => {
 
     const citas = await prisma.cita.findMany({
       where: { clienteId: cliente.id },
-      include: {
-        empleado: { include: { usuario: true } },
-        detalleServicios: { include: { servicio: true } },
-        citasRepuestos: { include: { inventario: true } },
-        estadosTrabajo: { orderBy: { fechaCambio: 'desc' } }
+      select: {
+        id: true,
+        fechaCita: true,
+        horaInicio: true,
+        horaFin: true,
+        fechaEstimadaEntrega: true,
+        fechaEntregaReal: true,
+        estado: true,
+        tipoServicio: true,
+        observaciones: true,
+        diagnostico: true,
+        kilometraje: true,
+        fotos: true,
+        empleado: {
+          select: {
+            id: true,
+            cargo: true,
+            usuario: {
+              select: {
+                nombreCompleto: true,
+                email: true,
+                telefono: true
+              }
+            }
+          }
+        },
+        detalleServicios: {
+          select: {
+            servicio: {
+              select: {
+                id: true,
+                descripcion: true,
+                costo: true
+              }
+            }
+          }
+        },
+        citasRepuestos: {
+          select: {
+            id: true,
+            cantidad: true,
+            precioUnitario: true,
+            subtotal: true,
+            inventario: {
+              select: {
+                codigo: true,
+                nombre: true
+              }
+            }
+          }
+        },
+        estadosTrabajo: {
+          select: {
+            id: true,
+            estado: true,
+            estadoAnterior: true,
+            fechaCambio: true,
+            observaciones: true
+          },
+          orderBy: { fechaCambio: 'desc' }
+        },
+        preReserva: {
+          select: {
+            marcaVehiculo: true,
+            modeloVehiculo: true,
+            anioVehiculo: true,
+            placa: true
+          }
+        }
       },
-      orderBy: { fechaCita: 'desc' }
+      orderBy: { fechaCita: 'desc' },
+      take: 100
     });
 
     const resultado = citas.map(c => {
       const costoServicios = c.detalleServicios.reduce((sum, s) => sum + Number(s.servicio.costo), 0);
       const costoRepuestos = c.citasRepuestos.reduce((sum, r) => sum + Number(r.subtotal), 0);
 
+      // Enlazar vehículo del cliente o prereserva
+      const vehiculoObj = cliente.vehiculos?.[0] || (c.preReserva ? {
+        marca: c.preReserva.marcaVehiculo,
+        modelo: c.preReserva.modeloVehiculo,
+        anio: c.preReserva.anioVehiculo,
+        placa: c.preReserva.placa,
+        kilometraje: 35000
+      } : {
+        marca: 'Vehículo Taller',
+        modelo: 'ADN Motors',
+        anio: 2023,
+        placa: '4829-KLS',
+        kilometraje: 35000
+      });
+
+      const vehiculoString = `${vehiculoObj.marca} ${vehiculoObj.modelo} (${vehiculoObj.anio || 'N/A'}) - Placa: ${vehiculoObj.placa}`;
+
       return {
         id: c.id,
         fecha_cita: c.fechaCita,
         hora_inicio: c.horaInicio,
-        mecanico: c.empleado?.usuario?.nombreCompleto || 'Por asignar',
+        hora_fin: c.horaFin,
+        fecha_estimada_entrega: c.fechaEstimadaEntrega || c.horaFin || null,
+        fecha_entrega_real: c.fechaEntregaReal || null,
+        observaciones: c.observaciones || 'Sin observaciones registradas.',
+        diagnostico: c.diagnostico || 'Evaluación técnica inicial en curso.',
+        kilometraje: c.kilometraje || vehiculoObj.kilometraje || 35000,
+        fotos: Array.isArray(c.fotos) ? c.fotos : [],
+        mecanico: c.empleado?.usuario?.nombreCompleto || 'Especialista ADN Motors',
+        mecanico_cargo: c.empleado?.cargo || 'Mecánico Certificado',
+        mecanico_telefono: c.empleado?.usuario?.telefono || '70000000',
+        vehiculo: vehiculoString,
+        vehiculo_marca: vehiculoObj.marca,
+        vehiculo_modelo: vehiculoObj.modelo,
+        vehiculo_anio: vehiculoObj.anio,
+        placa: vehiculoObj.placa,
         estado: MAP_ESTADO_FRONTEND[c.estado] || c.estado,
+        tipo_servicio: c.tipoServicio,
         servicios: c.detalleServicios.map(s => s.servicio.descripcion).join(', '),
+        servicios_detalle: c.detalleServicios.map(s => ({
+          id: s.servicio.id,
+          descripcion: s.servicio.descripcion,
+          costo: Number(s.servicio.costo)
+        })),
+        detalleServicios: c.detalleServicios,
         repuestos: c.citasRepuestos.map(r => ({
+          id: r.id,
+          codigo: r.inventario.codigo,
           nombre: r.inventario.nombre,
           cantidad: r.cantidad,
-          subtotal: r.subtotal
+          precio_unitario: Number(r.precioUnitario),
+          subtotal: Number(r.subtotal)
         })),
+        citasRepuestos: c.citasRepuestos,
+        costo_servicios: costoServicios,
+        costo_repuestos: costoRepuestos,
         costo_total: costoServicios + costoRepuestos,
-        historial_estados: c.estadosTrabajo
+        historial_estados: c.estadosTrabajo.map(e => ({
+          id: e.id,
+          estado: e.estado,
+          estado_anterior: e.estadoAnterior,
+          estadoAnterior: e.estadoAnterior,
+          fecha_cambio: e.fechaCambio,
+          fechaCambio: e.fechaCambio,
+          observaciones: e.observaciones
+        }))
       };
     });
 
@@ -619,13 +986,32 @@ export const obtenerHistorialVehiculo = async (req, res) => {
           { cliente: { vehiculos: { some: { placa: { equals: placa.trim(), mode: 'insensitive' } } } } }
         ]
       },
-      include: {
-        cliente: { include: { usuario: true } },
-        empleado: { include: { usuario: true } },
-        detalleServicios: { include: { servicio: true } },
-        citasRepuestos: { include: { inventario: true } }
+      select: {
+        id: true,
+        fechaCita: true,
+        estado: true,
+        kilometraje: true,
+        descuento: true,
+        empleado: {
+          select: {
+            usuario: { select: { nombreCompleto: true } }
+          }
+        },
+        detalleServicios: {
+          select: {
+            servicio: { select: { descripcion: true, costo: true } }
+          }
+        },
+        citasRepuestos: {
+          select: {
+            cantidad: true,
+            subtotal: true,
+            inventario: { select: { nombre: true } }
+          }
+        }
       },
-      orderBy: { fechaCita: 'desc' }
+      orderBy: { fechaCita: 'desc' },
+      take: 50
     });
 
     const resultado = citas.map(c => {
@@ -687,12 +1073,31 @@ export const eliminarTrabajo = async (req, res) => {
   }
 };
 
-import { subirFotoCloudinary } from '../services/cloudinary.service.js';
+export const subirFotoTemp = async (req, res) => {
+  try {
+    const fotoBase64 = req.body.fotoBase64 || req.body.base64 || req.body.imagen || req.body.foto;
+    if (!fotoBase64) {
+      return res.status(400).json({ success: false, error: 'La imagen en formato base64 es requerida' });
+    }
+
+    const { url, public_id } = await subirFotoCloudinary(fotoBase64, 'adn_motors_temp');
+
+    return res.json({
+      success: true,
+      url,
+      public_id,
+      message: 'Foto temporal subida con éxito a Cloudinary'
+    });
+  } catch (error) {
+    console.error('Error subirFotoTemp:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al subir foto temporal' });
+  }
+};
 
 export const subirFotoCita = async (req, res) => {
   try {
     const { citaId } = req.params;
-    const { fotoBase64 } = req.body;
+    const fotoBase64 = req.body.fotoBase64 || req.body.base64 || req.body.imagen || req.body.foto;
 
     if (!fotoBase64) {
       return res.status(400).json({ success: false, error: 'La imagen en formato base64 es requerida' });

@@ -1,10 +1,29 @@
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Production builds
 dist
 dist-ssr
+build
 *.local
+
+# Environment variables & secrets (CRITICAL - NEVER COMMIT)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.env
+*.env.*
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+secrets*.json
+config.local.json
+postgrest.conf
 
 # Logs
 logs
@@ -12,27 +31,23 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Editor directories and files
+# Editor & OS files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
+# Temporary / backups
 .backup
 *.bak
-
-# Secrets & Private Configs
-*.pem
-*.key
-*.p12
-*.pfx
-secrets*.json
-config.local.json
-.env.production
-.env.staging
+*.tmp
+temp/
+tmp/

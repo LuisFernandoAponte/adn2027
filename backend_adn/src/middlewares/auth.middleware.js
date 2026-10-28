@@ -3,6 +3,24 @@ import prisma from '../config/database.js';
 import { config } from '../config/index.js';
 import rateLimit from 'express-rate-limit';
 
+// ==========================================
+// CACHÉ EN MEMORIA PARA AUTENTICACIÓN
+// Evita consultar Supabase en cada petición HTTP
+// ==========================================
+const userCache = new Map();
+const USER_CACHE_TTL_MS = 60 * 1000; // 60 segundos de TTL
+
+const rolPermisosCache = new Map();
+const PERMISOS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos de TTL
+
+export const invalidateUserAuthCache = (userId) => {
+  if (userId) {
+    userCache.delete(userId);
+  } else {
+    userCache.clear();
+  }
+};
+
 export const verifyToken = async (req, res, next) => {
   try {
     let token = null;
@@ -19,11 +37,36 @@ export const verifyToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, config.jwt.secret);
+    const now = Date.now();
 
-    const usuario = await prisma.usuario.findUnique({
-      where: { id: decoded.userId },
-      include: { rol: true }
-    });
+    // 1. Revisar caché en memoria primero (0ms)
+    let usuario = null;
+    const cached = userCache.get(decoded.userId);
+    if (cached && cached.expiresAt > now) {
+      usuario = cached.data;
+    } else {
+      // 2. Consulta proyectada ultra-rápida si expiró o no está en caché
+      usuario = await prisma.usuario.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          email: true,
+          rolId: true,
+          estado: true,
+          emailVerificado: true,
+          rol: {
+            select: { descripcion: true }
+          }
+        }
+      });
+
+      if (usuario && usuario.estado) {
+        userCache.set(decoded.userId, {
+          data: usuario,
+          expiresAt: now + USER_CACHE_TTL_MS
+        });
+      }
+    }
 
     if (!usuario || !usuario.estado) {
       return res.status(401).json({ success: false, error: 'Usuario no encontrado o desactivado' });
@@ -100,12 +143,36 @@ export const requirePermiso = (permisoRequerido) => {
         return res.status(401).json({ success: false, error: 'No autenticado' });
       }
 
-      const permisos = await prisma.detallePermiso.findMany({
-        where: { rolId: req.user.rolId },
-        include: { permiso: true }
-      });
+      // El rol Administrador posee acceso irrestricto a todas las funciones
+      const userRol = (req.user.rol || '').toLowerCase();
+      if (userRol === 'administrador' || userRol === 'admin') {
+        return next();
+      }
 
-      const tienePermiso = permisos.some(p => p.permiso.permiso === permisoRequerido);
+      const now = Date.now();
+      let tienePermiso = false;
+      const cached = rolPermisosCache.get(req.user.rolId);
+
+      if (cached && cached.expiresAt > now) {
+        tienePermiso = cached.permisos.some(p => p.toLowerCase() === permisoRequerido.toLowerCase());
+      } else {
+        const permisos = await prisma.detallePermiso.findMany({
+          where: { rolId: req.user.rolId },
+          select: {
+            permiso: {
+              select: { permiso: true }
+            }
+          }
+        });
+
+        const list = permisos.map(p => p.permiso.permiso);
+        rolPermisosCache.set(req.user.rolId, {
+          permisos: list,
+          expiresAt: now + PERMISOS_CACHE_TTL_MS
+        });
+
+        tienePermiso = list.some(p => p.toLowerCase() === permisoRequerido.toLowerCase());
+      }
 
       if (!tienePermiso) {
         return res.status(403).json({ success: false, error: 'No tienes el permiso necesario' });
@@ -129,8 +196,16 @@ export const authLimiter = rateLimit({
 
 export const apiLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max,
+  max: Math.max(config.rateLimit.max || 100, 2000), // Evita bloquear la red compartida del taller
   message: { success: false, error: 'Demasiadas solicitudes, intenta más tarde.' },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Si viene autenticado, limita por sesión de usuario para no penalizar a otros mecánicos en el mismo Wi-Fi
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith('Bearer ')) {
+      return `jwt_${auth.slice(-24)}`;
+    }
+    return req.ip || req.headers['x-forwarded-for'] || 'taller-ip';
+  }
 });

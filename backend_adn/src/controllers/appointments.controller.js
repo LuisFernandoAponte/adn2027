@@ -124,10 +124,22 @@ export const cambiarEstadoAppointment = async (req, res) => {
 // ─────────────────────────────────────────────
 export const availableSlots = async (req, res) => {
   try {
-    const { empleado_id, fecha, tipo_servicio } = req.query;
+    let { empleado_id, fecha, tipo_servicio } = req.query;
 
-    if (!empleado_id || !fecha) {
-      return res.status(400).json({ success: false, error: 'empleado_id y fecha son requeridos' });
+    if (!fecha) {
+      fecha = new Date().toISOString().split('T')[0];
+    }
+
+    if (!empleado_id) {
+      const emp = await prisma.empleado.findFirst({
+        where: { estado: true },
+        select: { id: true }
+      });
+      if (emp) empleado_id = emp.id;
+    }
+
+    if (!empleado_id) {
+      return res.status(404).json({ success: false, error: 'No hay empleados registrados para consultar horarios' });
     }
 
     const result = await prisma.$queryRawUnsafe(`

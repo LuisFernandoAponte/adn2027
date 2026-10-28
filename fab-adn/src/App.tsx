@@ -94,6 +94,13 @@ const AnimatedRoutes: React.FC = () => {
         } />
 
         {/* Rutas de Administración con Alias Flexibles */}
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Suspense fallback={<PageSkeleton />}>
+              <AdminLayout><AdminDashboard /></AdminLayout>
+            </Suspense>
+          </ProtectedRoute>
+        } />
         <Route path="/admin/dashboard" element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <Suspense fallback={<PageSkeleton />}>
@@ -109,6 +116,17 @@ const AnimatedRoutes: React.FC = () => {
           </ProtectedRoute>
         } />
 
+        {/* Rutas de Operaciones de Taller / Mecánico con Alias */}
+        <Route path="/empleado" element={
+          <ProtectedRoute allowedRoles={["empleado", "admin"]}>
+            <Suspense fallback={<PageSkeleton />}><EmpleadoPanel /></Suspense>
+          </ProtectedRoute>
+        } />
+        <Route path="/mecanico" element={
+          <ProtectedRoute allowedRoles={["empleado", "admin"]}>
+            <Suspense fallback={<PageSkeleton />}><EmpleadoPanel /></Suspense>
+          </ProtectedRoute>
+        } />
         <Route path="/empleado/dashboard" element={
           <ProtectedRoute allowedRoles={["empleado", "admin"]}>
             <Suspense fallback={<PageSkeleton />}><EmpleadoPanel /></Suspense>

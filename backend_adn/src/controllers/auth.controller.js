@@ -128,8 +128,6 @@ export const login = async (req, res) => {
       }
     });
 
-    emailService.sendWelcomeEmail(usuario.email, usuario.nombreCompleto);
-
   } catch (error) {
     console.error('Error en login:', error);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
@@ -623,5 +621,18 @@ export const updateProfile = async (req, res) => {
   } catch (error) {
     console.error('Error updateProfile:', error);
     return res.status(500).json({ success: false, error: 'Error al actualizar el perfil' });
+  }
+};
+
+export const getPublicRoles = async (req, res) => {
+  try {
+    const roles = await prisma.rol.findMany({
+      where: { estado: true },
+      select: { id: true, descripcion: true }
+    });
+    return res.json({ success: true, roles });
+  } catch (error) {
+    console.error('Error getPublicRoles:', error);
+    return res.status(500).json({ success: false, error: 'Error al obtener roles' });
   }
 };

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getToken } from "@/lib/auth";
 import { subirFotoTrabajo, cambiarEstadoCita, type Trabajo } from "@/api/citaApi";
 import { currencyFormatter, getCodigoOT } from "@/features/empleado/stateMachine";
+import { ImageUploadDropzone } from "@/components/ui/ImageUploadDropzone";
 
 interface ModalFinalizarTrabajoProps {
   isOpen: boolean;
@@ -48,35 +49,6 @@ export const ModalFinalizarTrabajo: React.FC<ModalFinalizarTrabajoProps> = ({
 
   const codigoOT = getCodigoOT(trabajo.id);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 8 * 1024 * 1024) {
-      toast({ title: "Archivo muy pesado", description: "El tamaño máximo permitido es 8 MB", variant: "destructive" });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Str = reader.result as string;
-      setSubiendoFoto(true);
-      try {
-        const token = getToken();
-        const res = await subirFotoTrabajo(token!, trabajo.id, base64Str);
-        if (res.success) {
-          setFotosList(res.fotos);
-          toast({ title: "Foto Adjuntada", description: "Evidencia de repuesto/trabajo subida a Cloudinary" });
-        }
-      } catch (err: any) {
-        toast({ title: "Error al subir foto", description: err.response?.data?.error || err.message, variant: "destructive" });
-      } finally {
-        setSubiendoFoto(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleConfirmarFinalizacion = async (generarFactura = false) => {
     setGuardando(true);
     try {
@@ -104,7 +76,7 @@ export const ModalFinalizarTrabajo: React.FC<ModalFinalizarTrabajoProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl bg-neutral-900 border-white/10 text-neutral-100 p-0 overflow-hidden shadow-2xl">
+      <DialogContent className="w-[96vw] max-w-xl bg-neutral-900 border-white/10 text-neutral-100 p-0 overflow-hidden shadow-2xl rounded-2xl max-h-[94dvh] touch-scroll safe-area-bottom">
         {/* Header */}
         <DialogHeader className="p-5 bg-neutral-950 border-b border-white/10 flex flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
@@ -183,31 +155,24 @@ export const ModalFinalizarTrabajo: React.FC<ModalFinalizarTrabajoProps> = ({
           </div>
 
           {/* Adjuntar Foto de Evidencia / Repuesto en Cloudinary */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <Camera className="h-4 w-4 text-red-400" /> Respaldo Fotográfico (Cloudinary)
-              </label>
-              <label className="cursor-pointer inline-flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs px-3 py-1.5 rounded-lg border border-white/10 transition-colors">
-                <Upload className="h-3.5 w-3.5 text-red-400" />
-                {subiendoFoto ? "Subiendo..." : "Adjuntar Foto"}
-                <input type="file" accept="image/*" onChange={handleFileUpload} disabled={subiendoFoto} className="hidden" />
-              </label>
-            </div>
-
-            {fotosList.length === 0 ? (
-              <div className="p-4 text-center rounded-xl bg-neutral-950 border border-white/5 border-dashed text-xs text-neutral-500">
-                Se recomienda adjuntar la foto del repuesto sustituido o del trabajo finalizado como respaldo para el cliente.
-              </div>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                {fotosList.map((url, i) => (
-                  <div key={i} className="relative rounded-lg overflow-hidden border border-white/10 aspect-square bg-neutral-950">
-                    <img src={url} alt={`Evidencia ${i}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="p-3.5 rounded-xl bg-neutral-950 border border-white/5">
+            <ImageUploadDropzone
+              photos={fotosList}
+              onChange={setFotosList}
+              onUploadCloudinary={async (base64) => {
+                const token = getToken();
+                if (!token) throw new Error("No autenticado");
+                const res = await subirFotoTrabajo(token, trabajo.id, base64);
+                if (res.success && res.fotos) {
+                  setFotosList(res.fotos);
+                  return res.fotos[res.fotos.length - 1];
+                }
+                throw new Error("Error al adjuntar foto");
+              }}
+              maxFiles={8}
+              label="Respaldo Fotográfico (Cloudinary)"
+              description="Fotos del repuesto sustituido o estado de entrega del vehículo."
+            />
           </div>
 
           {/* Notas Taller / Recomendaciones de Entrega */}
@@ -226,8 +191,8 @@ export const ModalFinalizarTrabajo: React.FC<ModalFinalizarTrabajoProps> = ({
         </div>
 
         {/* Footer Acciones */}
-        <div className="p-4 bg-neutral-950 border-t border-white/10 flex items-center justify-end gap-2">
-          <ButtonDS variant="secondary" onClick={onClose} disabled={guardando} className="text-xs py-2">
+        <div className="p-4 bg-neutral-950 border-t border-white/10 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
+          <ButtonDS variant="secondary" onClick={onClose} disabled={guardando} className="w-full sm:w-auto text-xs py-2">
             Cancelar
           </ButtonDS>
 
@@ -236,7 +201,7 @@ export const ModalFinalizarTrabajo: React.FC<ModalFinalizarTrabajoProps> = ({
             icon={<Printer className="h-4 w-4" />}
             onClick={() => handleConfirmarFinalizacion(true)}
             disabled={guardando || !checkMecanica}
-            className="text-xs py-2"
+            className="w-full sm:w-auto text-xs py-2"
           >
             {nuevoEstado === "Entregado" ? "Entregar & Facturar" : "Completar & Facturar"}
           </ButtonDS>
@@ -246,7 +211,7 @@ export const ModalFinalizarTrabajo: React.FC<ModalFinalizarTrabajoProps> = ({
             icon={<CheckCircle2 className="h-4 w-4" />}
             onClick={() => handleConfirmarFinalizacion(false)}
             disabled={guardando || !checkMecanica}
-            className="text-xs py-2"
+            className="w-full sm:w-auto text-xs py-2"
           >
             {guardando ? "Procesando..." : `Marcar como ${nuevoEstado}`}
           </ButtonDS>

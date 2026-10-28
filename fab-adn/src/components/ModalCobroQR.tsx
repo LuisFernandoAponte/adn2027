@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { QrCode, Banknote, CreditCard, Building2, CheckCircle2, Copy, Receipt } from "lucide-react";
 import { API_BASE } from "@/api/config";
+import { optimizeImage } from "@/lib/imageOptimizer";
 
 interface ModalCobroQRProps {
   isOpen: boolean;
@@ -36,17 +37,17 @@ export const ModalCobroQR: React.FC<ModalCobroQRProps> = ({
   const [montoRecibido, setMontoRecibido] = useState<number>(0);
   const [procesando, setProcesando] = useState(false);
 
-  const handleUploadCustomQR = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadCustomQR = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64Str = reader.result as string;
-      localStorage.setItem("taller_custom_qr", base64Str);
-      setCustomQrImage(base64Str);
-      toast({ title: "Imagen de QR Guardada", description: "Se actualizará para los próximos cobros del taller." });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const optimized = await optimizeImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85 });
+      localStorage.setItem("taller_custom_qr", optimized.base64);
+      setCustomQrImage(optimized.base64);
+      toast({ title: "Imagen de QR Optimizada y Guardada", description: "Se actualizará para los próximos cobros del taller." });
+    } catch (err: any) {
+      toast({ title: "Error al guardar QR", description: err.message, variant: "destructive" });
+    }
   };
 
   if (!isOpen || !trabajo) return null;
@@ -121,7 +122,7 @@ export const ModalCobroQR: React.FC<ModalCobroQRProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[96vw] max-w-[560px] max-h-[94dvh] sm:max-h-[90vh] overflow-y-auto touch-scroll safe-area-bottom rounded-2xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">

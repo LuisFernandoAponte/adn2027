@@ -78,13 +78,22 @@ export const getEgresos = async (req, res) => {
 
 export const getResumenFinanciero = async (req, res) => {
   try {
-    const { mes, anio } = req.query;
-    const now = new Date();
-    const targetAnio = anio ? Number(anio) : now.getFullYear();
-    const targetMes = mes ? Number(mes) : now.getMonth() + 1;
+    const { mes, anio, fecha_inicio, fecha_fin } = req.query;
+    let primerDia, ultimoDia;
+    let targetAnio, targetMes;
 
-    const primerDia = new Date(targetAnio, targetMes - 1, 1);
-    const ultimoDia = new Date(targetAnio, targetMes, 0, 23, 59, 59);
+    if (fecha_inicio && fecha_fin) {
+      primerDia = new Date(`${fecha_inicio}T00:00:00.000Z`);
+      ultimoDia = new Date(`${fecha_fin}T23:59:59.999Z`);
+      targetAnio = primerDia.getFullYear();
+      targetMes = primerDia.getMonth() + 1;
+    } else {
+      const now = new Date();
+      targetAnio = anio ? Number(anio) : now.getFullYear();
+      targetMes = mes ? Number(mes) : now.getMonth() + 1;
+      primerDia = new Date(targetAnio, targetMes - 1, 1);
+      ultimoDia = new Date(targetAnio, targetMes, 0, 23, 59, 59);
+    }
 
     // Mes anterior para cálculo comparativo
     const mesAntAnio = targetMes === 1 ? targetAnio - 1 : targetAnio;
@@ -156,6 +165,7 @@ export const getResumenFinanciero = async (req, res) => {
     const desgloseCategorias = Object.entries(categoriasMap).map(([catKey, val]) => ({
       categoria: catKey,
       label: val.label,
+      nombre_legible: val.label,
       total: Number(val.total.toFixed(2)),
       count: val.count,
       porcentaje: totalEgresos > 0 ? Number(((val.total / totalEgresos) * 100).toFixed(1)) : 0
@@ -185,7 +195,8 @@ export const getResumenFinanciero = async (req, res) => {
             : 0
         }
       },
-      desglose_categorias: desgloseCategorias
+      desglose_categorias: desgloseCategorias,
+      distribucion_categorias: desgloseCategorias
     });
 
   } catch (error) {

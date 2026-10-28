@@ -10,38 +10,42 @@ export const getStats = async (req, res) => {
     const hoy = new Date();
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-    const totalCitas = await prisma.cita.count();
-
-    const completados = await prisma.cita.count({
-      where: { estado: { in: ['Completado', 'Entregado'] } }
-    });
-
-    const enProceso = await prisma.cita.count({
-      where: { estado: { in: ['En_taller', 'En_progreso', 'En_revision'] } }
-    });
-
-    const pendientes = await prisma.cita.count({
-      where: { estado: 'Agendado' }
-    });
-
-    const totalClientes = await prisma.cliente.count();
-
-    const ingresosFacturas = await prisma.factura.aggregate({
-      where: {
-        fechaEmision: { gte: hoy, lt: new Date(hoy.getTime() + 86400000) }
-      },
-      _sum: { total: true }
-    });
-
-    const empleadosConMasTrabajos = await prisma.cita.groupBy({
-      by: ['empleadoId'],
-      where: {
-        fechaCita: { gte: inicioMes }
-      },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 1
-    });
+    const [
+      totalCitas,
+      completados,
+      enProceso,
+      pendientes,
+      totalClientes,
+      ingresosFacturas,
+      empleadosConMasTrabajos
+    ] = await Promise.all([
+      prisma.cita.count(),
+      prisma.cita.count({
+        where: { estado: { in: ['Completado', 'Entregado'] } }
+      }),
+      prisma.cita.count({
+        where: { estado: { in: ['En_taller', 'En_progreso', 'En_revision'] } }
+      }),
+      prisma.cita.count({
+        where: { estado: 'Agendado' }
+      }),
+      prisma.cliente.count(),
+      prisma.factura.aggregate({
+        where: {
+          fechaEmision: { gte: hoy, lt: new Date(hoy.getTime() + 86400000) }
+        },
+        _sum: { total: true }
+      }),
+      prisma.cita.groupBy({
+        by: ['empleadoId'],
+        where: {
+          fechaCita: { gte: inicioMes }
+        },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 1
+      })
+    ]);
 
     let topMecanico = null;
 
@@ -78,10 +82,21 @@ export const getStats = async (req, res) => {
 export const getRecentServices = async (req, res) => {
   try {
     const citas = await prisma.cita.findMany({
-      include: {
-        cliente: { include: { usuario: true } },
-        empleado: { include: { usuario: true } },
-        detalleServicios: { include: { servicio: true } }
+      select: {
+        id: true,
+        fechaCita: true,
+        estado: true,
+        cliente: {
+          select: { usuario: { select: { nombreCompleto: true } } }
+        },
+        empleado: {
+          select: { usuario: { select: { nombreCompleto: true } } }
+        },
+        detalleServicios: {
+          select: {
+            servicio: { select: { descripcion: true, costo: true } }
+          }
+        }
       },
       orderBy: { fechaReg: 'desc' },
       take: 10
@@ -234,17 +249,17 @@ export const getAlertas = async (req, res) => {
       });
     });
 
-    const citasSinAsignar = await prisma.cita.count({
-      where: { empleadoId: null, estado: 'Agendado' }
+    const reservasSinAsignar = await prisma.preReserva.count({
+      where: { empleadoId: null, estado: 'PENDIENTE' }
     });
 
-    if (citasSinAsignar > 0) {
+    if (reservasSinAsignar > 0) {
       advertencias++;
       alertas.push({
         tipo: 'citas_sin_asignar',
         severidad: 'advertencia',
-        titulo: 'Citas sin mecanico asignado',
-        mensaje: `${citasSinAsignar} cita(s) esperan asignación`,
+        titulo: 'Pre-reservas sin mecánico asignado',
+        mensaje: `${reservasSinAsignar} solicitud(es) esperan confirmación y asignación`,
         icono: 'calendar',
         link: '/admin/trabajos'
       });

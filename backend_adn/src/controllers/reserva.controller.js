@@ -269,19 +269,47 @@ export const verificarTokenPreReserva = async (req, res) => {
 
 export const verificarDisponibilidad = async (req, res) => {
   try {
-    const { fecha_cita, hora_cita, empleado_id } = req.query;
+    const fecha = req.query.fecha_cita || req.query.fecha;
+    const hora = req.query.hora_cita || req.query.hora;
+    const empleado_id = req.query.empleado_id;
 
-    if (!fecha_cita || !hora_cita) {
+    if (!fecha) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Fecha y hora son requeridas' 
+        error: 'La fecha de la cita es requerida' 
+      });
+    }
+
+    // Si no se envía una hora específica, devolver franja horaria disponible del día
+    if (!hora) {
+      const HORARIOS_TALLER = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
+      const citasDelDia = await prisma.cita.findMany({
+        where: {
+          fechaCita: new Date(fecha + 'T00:00:00'),
+          estado: { not: 'Cancelado' }
+        },
+        select: { horaInicio: true, empleadoId: true }
+      });
+
+      const ocupadas = new Set(citasDelDia.map(c => c.horaInicio.toTimeString().substring(0, 5)));
+      const slots = HORARIOS_TALLER.map(h => ({
+        hora: h,
+        disponible: !ocupadas.has(h)
+      }));
+
+      return res.json({
+        success: true,
+        fecha,
+        slots,
+        disponible: slots.some(s => s.disponible),
+        mensaje: 'Horarios consultados exitosamente'
       });
     }
 
     const citaExistente = await prisma.cita.findFirst({
       where: {
         empleadoId: empleado_id || undefined,
-        fechaCita: new Date(fecha_cita + 'T00:00:00'),
+        fechaCita: new Date(fecha + 'T00:00:00'),
         estado: { not: 'Cancelado' }
       }
     });

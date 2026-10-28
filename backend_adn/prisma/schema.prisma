@@ -164,6 +164,11 @@ model Cita {
   movimientos        MovimientoInventario[]
   citasRepuestos     CitaRepuesto[]
 
+  @@index([clienteId], map: "idx_citas_cliente_id")
+  @@index([empleadoId], map: "idx_citas_empleado_id")
+  @@index([estado], map: "idx_citas_estado")
+  @@index([fechaCita], map: "idx_citas_fecha_cita")
+  @@index([empleadoId, estado], map: "idx_citas_empleado_estado")
   @@map("citas")
 }
 
@@ -176,6 +181,8 @@ model DetalleServicio {
   servicio Servicio @relation(fields: [servicioId], references: [id])
 
   @@unique([citaId, servicioId])
+  @@index([citaId], map: "idx_detalle_servicio_cita_id")
+  @@index([servicioId], map: "idx_detalle_servicio_servicio_id")
   @@map("detalle_servicio")
 }
 
@@ -195,6 +202,9 @@ model Factura {
   detalleFacturas DetalleFactura[]
   pagos        Pago[]
 
+  @@index([clienteId], map: "idx_factura_cliente_id")
+  @@index([estado], map: "idx_factura_estado")
+  @@index([fechaEmision], map: "idx_factura_fecha_emision")
   @@map("factura")
 }
 
@@ -225,6 +235,8 @@ model EstadoTrabajo {
   cita    Cita    @relation(fields: [citaId], references: [id], onDelete: Cascade)
   usuario Usuario @relation(fields: [usuarioId], references: [id])
 
+  @@index([citaId], map: "idx_estado_trabajo_cita_id")
+  @@index([fechaCambio], map: "idx_estado_trabajo_fecha_cambio")
   @@map("estado_trabajo")
 }
 
@@ -269,6 +281,10 @@ model PreReserva {
   cliente Cliente? @relation(fields: [clienteId], references: [id])
   usuario Usuario? @relation(fields: [usuarioId], references: [id])
 
+  @@index([clienteId], map: "idx_prereserva_cliente_id")
+  @@index([empleadoId], map: "idx_prereserva_empleado_id")
+  @@index([estado], map: "idx_prereserva_estado")
+  @@index([fechaCita], map: "idx_prereserva_fecha_cita")
   @@map("pre_reserva")
 }
 
@@ -285,6 +301,7 @@ model Vehiculo {
 
   cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
+  @@index([clienteId], map: "idx_vehiculos_cliente_id")
   @@map("vehiculos")
 }
 
@@ -364,6 +381,8 @@ model CitaRepuesto {
   inventario Inventario @relation(fields: [inventarioId], references: [id])
 
   @@unique([citaId, inventarioId])
+  @@index([citaId], map: "idx_cita_repuestos_cita_id")
+  @@index([inventarioId], map: "idx_cita_repuestos_inventario_id")
   @@map("cita_repuestos")
 }
 
@@ -451,6 +470,8 @@ model Pago {
 
   factura Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
 
+  @@index([facturaId], map: "idx_pago_factura_id")
+  @@index([fechaPago], map: "idx_pago_fecha_pago")
   @@map("pagos")
 }
 

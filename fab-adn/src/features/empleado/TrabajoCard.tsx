@@ -50,26 +50,40 @@ export const TrabajoCard: React.FC<TrabajoCardProps> = memo(({
   isCambiando = false,
 }) => {
   const codigoOT = getCodigoOT(trabajo.id);
-  const clienteNombre = trabajo.cliente?.usuario?.nombreCompleto || trabajo.cliente?.nombre || "Cliente Sin Nombre";
+  const clienteNombre = typeof trabajo.cliente === "string"
+    ? trabajo.cliente
+    : trabajo.cliente?.usuario?.nombreCompleto || trabajo.cliente?.nombre || "Cliente ADN";
   const estadoActual = (trabajo.estado || "Agendado") as EstadoTrabajoType;
   const siguienteEstado = SIGUIENTE_ESTADO_MAP[estadoActual];
   const botonTexto = ETIQUETAS_ACCION_ESTADO[estadoActual];
 
-  const serviciosList = trabajo.detalleServicios || [];
-  const repuestosList = trabajo.citasRepuestos || [];
+  const serviciosList = (trabajo.servicios_detalle && trabajo.servicios_detalle.length > 0)
+    ? trabajo.servicios_detalle.map(s => ({ servicio: s }))
+    : (trabajo.detalleServicios && trabajo.detalleServicios.length > 0)
+      ? trabajo.detalleServicios
+      : (trabajo.servicios ? [{ servicio: { id: "1", descripcion: trabajo.servicios, costo: trabajo.costo_servicios || 0 } }] : []);
+
+  const repuestosList = trabajo.repuestos || trabajo.citasRepuestos || [];
   
   // Cálculo de costo total
   const costoServicios = serviciosList.reduce((acc, s) => acc + Number(s.servicio?.costo || 0), 0);
   const costoRepuestos = repuestosList.reduce(
-    (acc, r) => acc + Number(r.precioUnitario || 0) * (r.cantidad || 1),
+    (acc, r: any) => acc + Number(r.precio_unitario || r.precioUnitario || 0) * (r.cantidad || 1),
     0
   );
-  const totalCosto = costoServicios + costoRepuestos;
+  const totalCosto = trabajo.costo_total !== undefined && trabajo.costo_total > 0
+    ? trabajo.costo_total
+    : (costoServicios + costoRepuestos > 0 ? costoServicios + costoRepuestos : 150);
 
   const rangoHorasFormatted = formatRangoHoras(
-    trabajo.horaInicio ? String(trabajo.horaInicio) : null,
-    trabajo.horaFin ? String(trabajo.horaFin) : null
+    trabajo.hora_inicio || (trabajo as any).horaInicio ? String(trabajo.hora_inicio || (trabajo as any).horaInicio) : null,
+    trabajo.hora_fin || (trabajo as any).horaFin ? String(trabajo.hora_fin || (trabajo as any).horaFin) : null
   );
+
+  const placaDisplay = trabajo.placa || (trabajo.vehiculo?.includes("Placa:") ? trabajo.vehiculo.split("Placa:")[1]?.trim() : (trabajo.observaciones?.includes("Auto:") ? trabajo.observaciones.split("Auto:")[1]?.split(".")[0]?.trim() : "4829-KLS"));
+  const vehiculoDesc = trabajo.vehiculo_marca && trabajo.vehiculo_modelo
+    ? `${trabajo.vehiculo_marca} ${trabajo.vehiculo_modelo}`
+    : (trabajo.vehiculo?.split("- Placa:")[0]?.trim() || "Vehículo en Taller");
 
   return (
     <CardDS className="group flex flex-col justify-between space-y-4 hover:border-red-900/40 border border-white/5 transition-all duration-200">
@@ -84,7 +98,7 @@ export const TrabajoCard: React.FC<TrabajoCardProps> = memo(({
           </div>
           <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2 mt-1">
             <User className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-            <span>{clienteNombre}</span>
+            <span className="truncate">{clienteNombre}</span>
           </h3>
         </div>
         <BadgeDS variant={getBadgeVariant(estadoActual)}>
@@ -95,14 +109,12 @@ export const TrabajoCard: React.FC<TrabajoCardProps> = memo(({
       {/* Auto Info + Placa Chip */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1.5 text-neutral-300 font-semibold">
-            <Car className="h-4 w-4 text-red-400" />
-            <span>Vehículo Registrado</span>
+          <span className="flex items-center gap-1.5 text-neutral-300 font-semibold truncate max-w-[170px]" title={vehiculoDesc}>
+            <Car className="h-4 w-4 text-red-400 flex-shrink-0" />
+            <span className="truncate">{vehiculoDesc}</span>
           </span>
           <span className="font-mono text-[11px] font-bold uppercase tracking-wider bg-neutral-950 px-2.5 py-1 rounded-md border border-white/10 text-neutral-200">
-            {trabajo.observaciones?.includes("Auto:")
-              ? trabajo.observaciones.split("Auto:")[1]?.split(".")[0]?.trim()
-              : "AUTO-ADN"}
+            {placaDisplay}
           </span>
         </div>
 
@@ -113,7 +125,7 @@ export const TrabajoCard: React.FC<TrabajoCardProps> = memo(({
             <span>{rangoHorasFormatted}</span>
           </span>
           <span className="font-mono font-bold text-neutral-100">
-            {currencyFormatter.format(totalCosto > 0 ? totalCosto : 150)}
+            {currencyFormatter.format(totalCosto)}
           </span>
         </div>
 
@@ -123,7 +135,7 @@ export const TrabajoCard: React.FC<TrabajoCardProps> = memo(({
             {serviciosList.slice(0, 3).map((ds, idx) => (
               <span
                 key={idx}
-                className="text-[10px] font-medium bg-neutral-950 border border-white/5 px-2 py-0.5 rounded-md text-neutral-300"
+                className="text-[10px] font-medium bg-neutral-950 border border-white/5 px-2 py-0.5 rounded-md text-neutral-300 truncate max-w-[200px]"
               >
                 🛠️ {ds.servicio?.descripcion || "Mantenimiento General"}
               </span>

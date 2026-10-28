@@ -15,30 +15,53 @@ export interface RepuestoAsignado {
 export interface HistorialEstado {
   id: string;
   estado: string;
+  estado_anterior?: string | null;
   estadoAnterior?: string | null;
   observaciones?: string | null;
-  fechaCambio: string;
+  fecha_cambio?: string;
+  fechaCambio?: string;
+}
+
+export interface ServicioDetalleItem {
+  id: string;
+  descripcion: string;
+  costo: number;
 }
 
 export interface Trabajo {
   id: string;
   fecha_cita: string;
   hora_inicio: string;
-  hora_fin: string | null;
+  hora_fin?: string | null;
+  fecha_estimada_entrega?: string | null;
+  fecha_entrega_real?: string | null;
   observaciones: string | null;
-  cliente: string;
+  diagnostico?: string | null;
+  kilometraje?: number | null;
+  cliente: any;
+  cliente_id?: string;
   cliente_email?: string | null;
-  cliente_telefono: string | null;
+  cliente_telefono?: string | null;
   mecanico: string;
+  mecanico_cargo?: string;
   mecanico_id?: string;
+  mecanico_telefono?: string | null;
   vehiculo?: string;
+  vehiculo_marca?: string;
+  vehiculo_modelo?: string;
+  vehiculo_anio?: number | null;
   placa?: string;
   estado: string;
   tipo_servicio?: string;
   servicios: string | null;
+  servicios_detalle?: ServicioDetalleItem[];
+  detalleServicios?: Array<{ servicio: { id?: string; descripcion: string; costo: number } }>;
+  citasRepuestos?: any[];
   repuestos?: RepuestoAsignado[];
   costo_servicios?: number;
   costo_repuestos?: number;
+  subtotal_bruto?: number;
+  descuento?: number;
   costo_total: number;
   fotos?: string[];
   historial_estados?: HistorialEstado[];
@@ -232,6 +255,18 @@ export const guardarInformeTecnico = async (
   const response = await axios.put(
     `${API_BASE}/api/citas/${citaId}/informe-tecnico`,
     data,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data;
+};
+
+export const subirFotoTemp = async (
+  token: string,
+  fotoBase64: string
+): Promise<{ success: boolean; url: string; public_id?: string; message?: string }> => {
+  const response = await axios.post(
+    `${API_BASE}/api/citas/admin/citas/subir-temp`,
+    { fotoBase64 },
     { headers: { Authorization: `Bearer ${token}` } }
   );
   return response.data;
